@@ -14,6 +14,7 @@ import { COLORS, FONTS, GAME_CONFIG } from '../../src/config/gameConfig';
 import { CyberButton, CyberCard, GlowText, CyberInput } from '../../src/components/cyber';
 import { ScanlineOverlay, GridBackground } from '../../src/components/cyber/ScanlineOverlay';
 import { useCollectionStore } from '../../src/stores/collectionStore';
+import { useAuthStore } from '../../src/stores/authStore';
 import { analyzeDrawing, generateStats, determineElement, determineRarity } from '../../src/engine/drawingAnalyzer';
 import type { Character, DrawingAnalysis } from '../../src/types';
 
@@ -86,9 +87,20 @@ function generateMockPixelData(paths: DrawPath[], canvasSize: number): Uint8Arra
   return data;
 }
 
+// Convert pixel data (Uint8Array RGBA) to base64 PNG-like string
+// In production this would use a canvas to encode real PNG; for now we store raw RGBA
+function pixelDataToBase64(data: Uint8Array): string {
+  let binary = '';
+  for (let i = 0; i < data.length; i++) {
+    binary += String.fromCharCode(data[i]);
+  }
+  return btoa(binary);
+}
+
 export default function DrawScreen() {
   const router = useRouter();
-  const { addCharacter } = useCollectionStore();
+  const { setDraft } = useCollectionStore();
+  const user = useAuthStore((s) => s.user);
 
   const [paths, setPaths] = useState<DrawPath[]>([]);
   const [currentColor, setCurrentColor] = useState('#000000');
@@ -144,16 +156,17 @@ export default function DrawScreen() {
       return;
     }
 
-    // Generate mock pixel data from paths
+    // Generate pixel data from paths
     const pixelData = generateMockPixelData(paths, CANVAS_SIZE);
     const analysis = analyzeDrawing(pixelData, 64, 64);
     const stats = generateStats(analysis);
     const element = determineElement(analysis);
     const rarity = determineRarity(stats.totalStats);
+    const imageBase64 = pixelDataToBase64(pixelData);
 
     const newCharacter: Character = {
       id: Date.now().toString() + Math.random().toString(36).substring(2, 9),
-      userId: 'local',
+      userId: user?.id || 'local',
       imageUrl: '',
       name: undefined,
       specialMoveName: '',
@@ -167,24 +180,11 @@ export default function DrawScreen() {
       createdAt: new Date().toISOString(),
     };
 
-    addCharacter(newCharacter);
+    // Save as draft and navigate to naming screen
+    setDraft(newCharacter, imageBase64);
     setPaths([]);
-
-    Alert.alert(
-      'CHARACTER CREATED',
-      `Rarity: ${rarity}\nElement: ${element}\nHP: ${stats.hp}  ATK: ${stats.atk}  DEF: ${stats.def}\nSPD: ${stats.spd}  SPE: ${stats.special}\nTotal: ${stats.totalStats}`,
-      [
-        {
-          text: 'VIEW COLLECTION',
-          onPress: () => router.push('/(tabs)/collection'),
-        },
-        {
-          text: 'DRAW AGAIN',
-          style: 'cancel',
-        },
-      ]
-    );
-  }, [paths, addCharacter, router]);
+    router.push('/character/naming');
+  }, [paths, setDraft, user, router]);
 
   // Render drawn paths as small dot views
   const renderPaths = () => {

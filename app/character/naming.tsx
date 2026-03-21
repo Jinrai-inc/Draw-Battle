@@ -1,13 +1,13 @@
 import React, { useState, useCallback, useRef, useEffect } from 'react';
-import { View, Text, TextInput, StyleSheet, Animated, Easing, ScrollView, KeyboardAvoidingView, Platform } from 'react-native';
+import { View, Text, TextInput, StyleSheet, Animated, Easing, ScrollView, KeyboardAvoidingView, Platform, Alert, ActivityIndicator } from 'react-native';
 import { useRouter } from 'expo-router';
 import { COLORS, FONTS, GAME_CONFIG } from '../../src/config/gameConfig';
 import { GlowText } from '../../src/components/cyber/GlowText';
 import { CyberButton } from '../../src/components/cyber/CyberButton';
 import { ScanlineOverlay, GridBackground } from '../../src/components/cyber/ScanlineOverlay';
 import { StatsCard } from '../../src/components/StatsCard';
-import { useBattleStore } from '../../src/stores/battleStore';
 import { useCollectionStore } from '../../src/stores/collectionStore';
+import { useAuthStore } from '../../src/stores/authStore';
 import { calcSpecialPower } from '../../src/engine/specialPower';
 
 const RANK_COLORS: Record<string, string> = {
@@ -22,11 +22,12 @@ const RANK_COLORS: Record<string, string> = {
 
 export default function NamingScreen() {
   const router = useRouter();
-  const { playerCharacter } = useBattleStore();
-  const { addCharacter } = useCollectionStore();
+  const user = useAuthStore((s) => s.user);
+  const { draftCharacter, draftImageBase64, clearDraft, saveCharacter, addCharacter } = useCollectionStore();
 
   const [specialName, setSpecialName] = useState('');
   const [powerResult, setPowerResult] = useState(calcSpecialPower(''));
+  const [saving, setSaving] = useState(false);
 
   const pulseAnim = useRef(new Animated.Value(1)).current;
   const rankScale = useRef(new Animated.Value(1)).current;
@@ -107,19 +108,39 @@ export default function NamingScreen() {
     }).start();
   }, []);
 
-  const handleConfirm = useCallback(() => {
-    if (!playerCharacter || !specialName.trim()) return;
+  const handleConfirm = useCallback(async () => {
+    if (!draftCharacter || !specialName.trim()) return;
 
     const finalCharacter = {
-      ...playerCharacter,
+      ...draftCharacter,
       specialMoveName: specialName.trim(),
     };
 
-    addCharacter(finalCharacter);
-    router.replace('/(tabs)/collection');
-  }, [playerCharacter, specialName, addCharacter, router]);
+    // If user is logged in, save to DB
+    if (user?.id && draftImageBase64) {
+      setSaving(true);
+      try {
+        const saved = await saveCharacter(user.id, draftImageBase64, finalCharacter);
+        if (!saved) {
+          // DB save failed, keep locally
+          addCharacter(finalCharacter);
+        }
+      } catch {
+        // Fallback to local
+        addCharacter(finalCharacter);
+      } finally {
+        setSaving(false);
+      }
+    } else {
+      // Offline / not logged in
+      addCharacter(finalCharacter);
+    }
 
-  if (!playerCharacter) return null;
+    clearDraft();
+    router.replace('/(tabs)/collection');
+  }, [draftCharacter, draftImageBase64, specialName, user, saveCharacter, addCharacter, clearDraft, router]);
+
+  if (!draftCharacter) return null;
 
   const rankColor = RANK_COLORS[powerResult.rank] || COLORS.text;
   const multiplierPercent = ((powerResult.multiplier - 1) * 100).toFixed(0);
@@ -156,9 +177,9 @@ export default function NamingScreen() {
           {/* Character stats */}
           <View style={styles.statsSection}>
             <StatsCard
-              stats={playerCharacter.stats}
-              element={playerCharacter.element}
-              rarity={playerCharacter.rarity}
+              stats={draftCharacter.stats}
+              element={draftCharacter.element}
+              rarity={draftCharacter.rarity}
             />
           </View>
 
@@ -259,14 +280,18 @@ export default function NamingScreen() {
           </View>
 
           {/* Confirm button */}
-          <CyberButton
-            title={'\u25C6 CONFIRM'}
-            onPress={handleConfirm}
-            color={COLORS.secondary}
-            size="large"
-            style={styles.confirmButton}
-            disabled={!specialName.trim()}
-          />
+          {saving ? (
+            <ActivityIndicator size="large" color={COLORS.secondary} style={{ marginTop: 16 }} />
+          ) : (
+            <CyberButton
+              title={'\u25C6 CONFIRM'}
+              onPress={handleConfirm}
+              color={COLORS.secondary}
+              size="large"
+              style={styles.confirmButton}
+              disabled={!specialName.trim()}
+            />
+          )}
         </ScrollView>
       </KeyboardAvoidingView>
 

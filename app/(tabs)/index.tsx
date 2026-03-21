@@ -1,15 +1,24 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { View, Text, StyleSheet, ScrollView } from 'react-native';
 import { useRouter } from 'expo-router';
 import { COLORS, FONTS } from '../../src/config/gameConfig';
 import { CyberButton, CyberCard, GlowText } from '../../src/components/cyber';
 import { ScanlineOverlay, GridBackground } from '../../src/components/cyber/ScanlineOverlay';
 import { useCollectionStore } from '../../src/stores/collectionStore';
+import { useAuthStore } from '../../src/stores/authStore';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 export default function HomeScreen() {
   const router = useRouter();
-  const { characters } = useCollectionStore();
+  const { characters, loadCharacters } = useCollectionStore();
+  const user = useAuthStore((s) => s.user);
+
+  // Load characters from DB on mount
+  useEffect(() => {
+    if (user?.id) {
+      loadCharacters(user.id);
+    }
+  }, [user?.id]);
 
   return (
     <SafeAreaView style={styles.container}>
@@ -51,11 +60,11 @@ export default function HomeScreen() {
               <Text style={styles.statLabel}>CHARACTERS</Text>
             </View>
             <View style={styles.statItem}>
-              <Text style={styles.statValue}>0</Text>
+              <Text style={styles.statValue}>{user?.totalWins ?? 0}</Text>
               <Text style={styles.statLabel}>WINS</Text>
             </View>
             <View style={styles.statItem}>
-              <Text style={styles.statValue}>0</Text>
+              <Text style={styles.statValue}>{(user?.totalWins ?? 0) + (user?.totalLosses ?? 0)}</Text>
               <Text style={styles.statLabel}>BATTLES</Text>
             </View>
           </View>
