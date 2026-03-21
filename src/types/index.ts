@@ -68,7 +68,10 @@ export interface User {
   id: string;
   authId: string;
   displayName: string;
+  friendId: string;
   titleId?: string;
+  avatarUrl?: string;
+  bio?: string;
   rating: number;
   totalWins: number;
   totalLosses: number;

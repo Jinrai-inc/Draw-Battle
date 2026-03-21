@@ -1,22 +1,38 @@
 import React, { useState } from 'react';
-import { View, Text, StyleSheet } from 'react-native';
+import { View, Text, StyleSheet, Alert, ActivityIndicator } from 'react-native';
 import { useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { COLORS, FONTS } from '../../src/config/gameConfig';
 import { CyberButton } from '../../src/components/cyber/CyberButton';
-import { CyberInput } from '../../src/components/cyber/CyberInput';
 import { GlowText } from '../../src/components/cyber/GlowText';
 import { ScanlineOverlay, GridBackground } from '../../src/components/cyber/ScanlineOverlay';
+import { signInWithGoogle, signInWithApple } from '../../src/services/authService';
 
 export default function LoginScreen() {
   const router = useRouter();
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
+  const [loading, setLoading] = useState(false);
 
-  const handleLogin = () => {
-    // Phase 2: Implement Supabase Auth login
-    // For MVP, skip directly to main app
-    router.replace('/(tabs)');
+  const handleGoogleSignIn = async () => {
+    setLoading(true);
+    try {
+      await signInWithGoogle();
+      // OAuth redirect will handle the rest
+    } catch (err: any) {
+      Alert.alert('Error', err.message || 'Google sign in failed');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleAppleSignIn = async () => {
+    setLoading(true);
+    try {
+      await signInWithApple();
+    } catch (err: any) {
+      Alert.alert('Error', err.message || 'Apple sign in failed');
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -25,40 +41,39 @@ export default function LoginScreen() {
       <ScanlineOverlay />
 
       <View style={styles.content}>
-        <GlowText size={28} color={COLORS.primary}>LOGIN</GlowText>
+        <GlowText size={32} color={COLORS.primary}>DRAW BATTLE</GlowText>
         <Text style={styles.subtitle}>-- CYBER ARENA --</Text>
 
-        <View style={styles.form}>
-          <CyberInput
-            label="EMAIL"
-            placeholder="Enter your email..."
-            value={email}
-            onChangeText={setEmail}
-            keyboardType="email-address"
-            autoCapitalize="none"
-          />
-          <CyberInput
-            label="PASSWORD"
-            placeholder="Enter password..."
-            value={password}
-            onChangeText={setPassword}
-            secureTextEntry
-            glowColor={COLORS.secondary}
-          />
-          <CyberButton
-            title="LOGIN"
-            onPress={handleLogin}
-            size="large"
-            style={styles.button}
-          />
-          <CyberButton
-            title="SKIP (OFFLINE MODE)"
-            onPress={() => router.replace('/(tabs)')}
-            color={COLORS.textDim}
-            size="small"
-            style={styles.button}
-          />
-        </View>
+        {loading ? (
+          <ActivityIndicator size="large" color={COLORS.primary} style={{ marginTop: 40 }} />
+        ) : (
+          <View style={styles.buttons}>
+            <CyberButton
+              title="Google\u3067\u59CB\u3081\u308B"
+              onPress={handleGoogleSignIn}
+              size="large"
+              style={styles.button}
+            />
+            <CyberButton
+              title="Apple\u3067\u59CB\u3081\u308B"
+              onPress={handleAppleSignIn}
+              color={COLORS.text}
+              size="large"
+              style={styles.button}
+            />
+            <CyberButton
+              title="\u30E1\u30FC\u30EB\u3067\u767B\u9332"
+              onPress={() => router.push('/(auth)/register')}
+              color={COLORS.secondary}
+              size="large"
+              style={styles.button}
+            />
+          </View>
+        )}
+
+        <Text style={styles.terms}>
+          {'\u767B\u9332\u306B\u3088\u308A\u5229\u7528\u898F\u7D04\u306B\n\u540C\u610F\u3057\u305F\u3082\u306E\u3068\u307F\u306A\u3057\u307E\u3059'}
+        </Text>
       </View>
     </SafeAreaView>
   );
@@ -82,15 +97,22 @@ const styles = StyleSheet.create({
     color: COLORS.textDim,
     letterSpacing: 3,
     marginTop: 4,
-    marginBottom: 40,
+    marginBottom: 48,
   },
-  form: {
+  buttons: {
     width: '100%',
-    maxWidth: 400,
-    gap: 16,
+    maxWidth: 320,
+    gap: 14,
   },
   button: {
     width: '100%',
-    marginTop: 8,
+  },
+  terms: {
+    fontFamily: FONTS.body,
+    fontSize: 11,
+    color: COLORS.textDim,
+    textAlign: 'center',
+    marginTop: 32,
+    lineHeight: 18,
   },
 });
