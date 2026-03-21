@@ -1,4 +1,4 @@
-import React, { useState, useRef, useCallback } from 'react';
+import React, { useState, useRef, useCallback, useEffect } from 'react';
 import {
   View,
   Text,
@@ -108,7 +108,12 @@ export default function DrawScreen() {
   const [isDrawing, setIsDrawing] = useState(false);
 
   const currentPathRef = useRef<DrawPath | null>(null);
-  const canvasLayoutRef = useRef({ x: 0, y: 0 });
+  const currentColorRef = useRef(currentColor);
+  const brushSizeRef = useRef(brushSize);
+
+  // Keep refs in sync with state so PanResponder always uses latest values
+  useEffect(() => { currentColorRef.current = currentColor; }, [currentColor]);
+  useEffect(() => { brushSizeRef.current = brushSize; }, [brushSize]);
 
   const panResponder = useRef(
     PanResponder.create({
@@ -120,8 +125,8 @@ export default function DrawScreen() {
         const y = touch.locationY;
         currentPathRef.current = {
           points: [{ x, y }],
-          color: currentColor,
-          width: brushSize,
+          color: currentColorRef.current,
+          width: brushSizeRef.current,
         };
         setIsDrawing(true);
       },
