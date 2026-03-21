@@ -146,40 +146,40 @@ export default function BattleScreen() {
           </Text>
 
           {/* Random Match */}
-          <View style={styles.disabledMode}>
-            <CyberButton
-              title="RANDOM MATCH"
-              onPress={() => {}}
-              color={COLORS.textDim}
-              size="medium"
-              style={styles.battleBtn}
-              disabled={true}
-            />
-            <View style={styles.comingSoonBadge}>
-              <Text style={styles.comingSoonText}>COMING SOON</Text>
-            </View>
-            <Text style={styles.modeDesc}>
-              Match against a random online player
-            </Text>
-          </View>
+          <CyberButton
+            title={'\u25C8 RANDOM MATCH'}
+            onPress={() => {
+              if (!selectedCharacter) return;
+              setPlayerCharacter(selectedCharacter);
+              setPhase('matching');
+              router.push('/battle/matching?mode=random' as any);
+            }}
+            color={COLORS.secondary}
+            size="medium"
+            style={styles.battleBtn}
+            disabled={!hasSelected}
+          />
+          <Text style={styles.modeDesc}>
+            Match against a random online player via Supabase Realtime
+          </Text>
 
           {/* Friend Battle */}
-          <View style={styles.disabledMode}>
-            <CyberButton
-              title="FRIEND BATTLE"
-              onPress={() => {}}
-              color={COLORS.textDim}
-              size="medium"
-              style={styles.battleBtn}
-              disabled={true}
-            />
-            <View style={styles.comingSoonBadge}>
-              <Text style={styles.comingSoonText}>COMING SOON</Text>
-            </View>
-            <Text style={styles.modeDesc}>
-              Challenge a friend to a battle
-            </Text>
-          </View>
+          <CyberButton
+            title={'\u25A1 FRIEND BATTLE'}
+            onPress={() => {
+              if (!selectedCharacter) return;
+              setPlayerCharacter(selectedCharacter);
+              setPhase('matching');
+              router.push('/battle/matching?mode=friend' as any);
+            }}
+            color={COLORS.primary}
+            size="medium"
+            style={styles.battleBtn}
+            disabled={!hasSelected}
+          />
+          <Text style={styles.modeDesc}>
+            Challenge a friend (offline friends battle their best AI character)
+          </Text>
         </CyberCard>
       </ScrollView>
     </SafeAreaView>
@@ -300,24 +300,5 @@ const styles = StyleSheet.create({
     color: COLORS.textDim,
     textAlign: 'center',
     marginBottom: 16,
-  },
-  disabledMode: {
-    alignItems: 'center',
-  },
-  comingSoonBadge: {
-    backgroundColor: 'rgba(255, 0, 255, 0.15)',
-    borderWidth: 1,
-    borderColor: COLORS.secondary,
-    borderRadius: 3,
-    paddingHorizontal: 10,
-    paddingVertical: 3,
-    marginVertical: 4,
-  },
-  comingSoonText: {
-    fontFamily: FONTS.heading,
-    fontSize: 10,
-    color: COLORS.secondary,
-    letterSpacing: 2,
-    fontWeight: '700',
   },
 });
