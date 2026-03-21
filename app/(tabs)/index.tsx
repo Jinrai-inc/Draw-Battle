@@ -48,6 +48,14 @@ export default function HomeScreen() {
               color={COLORS.danger}
               style={styles.actionButton}
             />
+            {characters.length >= 2 && (
+              <CyberButton
+                title={'\u25C6 FUSION'}
+                onPress={() => router.push('/character/fusion')}
+                color={COLORS.warning}
+                style={styles.actionButton}
+              />
+            )}
           </View>
         </CyberCard>
 

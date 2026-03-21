@@ -96,6 +96,9 @@ export default function RootLayout() {
           <Stack.Screen name="battle/fight" options={{ animation: 'fade' }} />
           <Stack.Screen name="battle/result" options={{ animation: 'fade' }} />
           <Stack.Screen name="character/naming" options={{ animation: 'slide_from_bottom' }} />
+        <Stack.Screen name="character/evolve" options={{ animation: 'fade' }} />
+        <Stack.Screen name="character/fusion" options={{ animation: 'slide_from_bottom' }} />
+        <Stack.Screen name="character/[id]" options={{ animation: 'slide_from_right' }} />
         </Stack>
       </SafeAreaProvider>
     </GestureHandlerRootView>

@@ -8,37 +8,65 @@ import {
   Dimensions,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { useRouter } from 'expo-router';
 import { COLORS, FONTS, GAME_CONFIG } from '../../src/config/gameConfig';
-import { CyberButton, CyberCard, GlowText, CyberInput } from '../../src/components/cyber';
+import { CyberCard, GlowText } from '../../src/components/cyber';
 import { ScanlineOverlay, GridBackground } from '../../src/components/cyber/ScanlineOverlay';
 import { useCollectionStore } from '../../src/stores/collectionStore';
-import type { Character, RarityId } from '../../src/types';
+import type { Character, RarityId, ElementId } from '../../src/types';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 const CARD_GAP = 12;
 const CARD_WIDTH = (SCREEN_WIDTH - 40 - CARD_GAP) / 2;
 
-type FilterTab = 'ALL' | RarityId;
+type RarityFilter = 'ALL' | RarityId;
+type ElementFilter = 'ALL' | ElementId;
 
-const FILTER_TABS: FilterTab[] = ['ALL', 'C', 'UC', 'R', 'SR', 'SSR'];
+const RARITY_TABS: RarityFilter[] = ['ALL', 'C', 'UC', 'R', 'SR', 'SSR'];
+const ELEMENT_TABS: { id: ElementFilter; label: string; color: string }[] = [
+  { id: 'ALL', label: 'ALL', color: COLORS.primary },
+  ...GAME_CONFIG.elements.map(e => ({ id: e.id as ElementFilter, label: e.name, color: e.color })),
+];
 
 function getRarityColor(rarityId: string): string {
-  const entry = GAME_CONFIG.rarityThresholds.find((r) => r.id === rarityId);
-  return entry ? entry.color : '#888888';
+  return GAME_CONFIG.rarityThresholds.find(r => r.id === rarityId)?.color || '#888888';
 }
 
 function getElementInfo(elementId: string) {
-  return GAME_CONFIG.elements.find((e) => e.id === elementId);
+  return GAME_CONFIG.elements.find(e => e.id === elementId);
 }
 
 export default function CollectionScreen() {
+  const router = useRouter();
   const { characters, selectedCharacter, selectCharacter } = useCollectionStore();
-  const [activeFilter, setActiveFilter] = useState<FilterTab>('ALL');
+  const [rarityFilter, setRarityFilter] = useState<RarityFilter>('ALL');
+  const [elementFilter, setElementFilter] = useState<ElementFilter>('ALL');
 
   const filteredCharacters = useMemo(() => {
-    if (activeFilter === 'ALL') return characters;
-    return characters.filter((c) => c.rarity === activeFilter);
-  }, [characters, activeFilter]);
+    let result = characters;
+    if (rarityFilter !== 'ALL') result = result.filter(c => c.rarity === rarityFilter);
+    if (elementFilter !== 'ALL') result = result.filter(c => c.element === elementFilter);
+    return result;
+  }, [characters, rarityFilter, elementFilter]);
+
+  // Collection completion rate: 5 elements x 5 rarities (excl UR) = 25 slots
+  const completionMatrix = useMemo(() => {
+    const matrix: Record<string, Set<string>> = {};
+    for (const el of GAME_CONFIG.elements) {
+      matrix[el.id] = new Set();
+    }
+    for (const char of characters) {
+      if (char.rarity !== 'UR') {
+        matrix[char.element]?.add(char.rarity);
+      }
+    }
+    let filled = 0;
+    const total = GAME_CONFIG.elements.length * 5; // C, UC, R, SR, SSR
+    for (const el of GAME_CONFIG.elements) {
+      filled += matrix[el.id].size;
+    }
+    return { matrix, filled, total, percent: total > 0 ? Math.round((filled / total) * 100) : 0 };
+  }, [characters]);
 
   const handleSelectCharacter = (char: Character) => {
     if (selectedCharacter?.id === char.id) {
@@ -46,6 +74,10 @@ export default function CollectionScreen() {
     } else {
       selectCharacter(char);
     }
+  };
+
+  const handleCardLongPress = (char: Character) => {
+    router.push(`/character/${char.id}`);
   };
 
   return (
@@ -62,10 +94,55 @@ export default function CollectionScreen() {
           <Text style={styles.subtitle}>-- YOUR FIGHTERS --</Text>
         </View>
 
-        {/* Character Count */}
+        {/* Completion Rate */}
+        <CyberCard style={styles.completionCard} accentColor={COLORS.secondary}>
+          <View style={styles.completionHeader}>
+            <Text style={styles.completionTitle}>{'\u25C8'} COMPLETION</Text>
+            <Text style={[styles.completionPercent, {
+              color: completionMatrix.percent >= 100 ? '#FF69B4' :
+                completionMatrix.percent >= 50 ? COLORS.warning : COLORS.primary
+            }]}>
+              {completionMatrix.percent}%
+            </Text>
+          </View>
+          <View style={styles.completionBar}>
+            <View style={[styles.completionFill, {
+              width: `${completionMatrix.percent}%`,
+              backgroundColor: completionMatrix.percent >= 100 ? '#FF69B4' :
+                completionMatrix.percent >= 50 ? COLORS.warning : COLORS.primary
+            }]} />
+          </View>
+          {/* Mini matrix */}
+          <View style={styles.matrixContainer}>
+            <View style={styles.matrixRow}>
+              <Text style={styles.matrixCorner}> </Text>
+              {['C', 'UC', 'R', 'SR', 'SSR'].map(r => (
+                <Text key={r} style={[styles.matrixHeader, { color: getRarityColor(r) }]}>{r}</Text>
+              ))}
+            </View>
+            {GAME_CONFIG.elements.map(el => (
+              <View key={el.id} style={styles.matrixRow}>
+                <Text style={[styles.matrixElementLabel, { color: el.color }]}>{el.name}</Text>
+                {['C', 'UC', 'R', 'SR', 'SSR'].map(r => {
+                  const has = completionMatrix.matrix[el.id]?.has(r);
+                  return (
+                    <Text key={r} style={[styles.matrixCell, { color: has ? el.color : 'rgba(255,255,255,0.1)' }]}>
+                      {has ? '\u25C6' : '\u25C7'}
+                    </Text>
+                  );
+                })}
+              </View>
+            ))}
+          </View>
+          <Text style={styles.completionCount}>
+            {completionMatrix.filled}/{completionMatrix.total} slots {'\u25C6'} {characters.length} characters total
+          </Text>
+        </CyberCard>
+
+        {/* Character Count & Selection */}
         <View style={styles.countRow}>
           <Text style={styles.countText}>
-            {'\u25A1'} TOTAL: {characters.length} CHARACTER{characters.length !== 1 ? 'S' : ''}
+            {'\u25A1'} SHOWING: {filteredCharacters.length}
           </Text>
           {selectedCharacter && (
             <Text style={styles.selectedLabel}>
@@ -74,28 +151,39 @@ export default function CollectionScreen() {
           )}
         </View>
 
-        {/* Filter Tabs */}
+        {/* Rarity Filter */}
         <View style={styles.filterRow}>
-          {FILTER_TABS.map((tab) => {
-            const isActive = activeFilter === tab;
+          {RARITY_TABS.map(tab => {
+            const isActive = rarityFilter === tab;
             const tabColor = tab === 'ALL' ? COLORS.primary : getRarityColor(tab);
             return (
               <TouchableOpacity
                 key={tab}
-                style={[
-                  styles.filterTab,
-                  isActive && { borderColor: tabColor, backgroundColor: `${tabColor}15` },
-                ]}
-                onPress={() => setActiveFilter(tab)}
+                style={[styles.filterTab, isActive && { borderColor: tabColor, backgroundColor: `${tabColor}15` }]}
+                onPress={() => setRarityFilter(tab)}
                 activeOpacity={0.7}
               >
-                <Text
-                  style={[
-                    styles.filterTabText,
-                    { color: isActive ? tabColor : COLORS.textDim },
-                  ]}
-                >
+                <Text style={[styles.filterTabText, { color: isActive ? tabColor : COLORS.textDim }]}>
                   {tab}
+                </Text>
+              </TouchableOpacity>
+            );
+          })}
+        </View>
+
+        {/* Element Filter */}
+        <View style={styles.filterRow}>
+          {ELEMENT_TABS.map(tab => {
+            const isActive = elementFilter === tab.id;
+            return (
+              <TouchableOpacity
+                key={tab.id}
+                style={[styles.filterTab, isActive && { borderColor: tab.color, backgroundColor: `${tab.color}15` }]}
+                onPress={() => setElementFilter(tab.id)}
+                activeOpacity={0.7}
+              >
+                <Text style={[styles.filterTabText, { color: isActive ? tab.color : COLORS.textDim }]}>
+                  {tab.label}
                 </Text>
               </TouchableOpacity>
             );
@@ -105,7 +193,7 @@ export default function CollectionScreen() {
         {/* Character Grid */}
         {filteredCharacters.length > 0 ? (
           <View style={styles.grid}>
-            {filteredCharacters.map((char) => {
+            {filteredCharacters.map(char => {
               const isSelected = selectedCharacter?.id === char.id;
               const rarityColor = getRarityColor(char.rarity);
               const elementInfo = getElementInfo(char.element);
@@ -115,6 +203,7 @@ export default function CollectionScreen() {
                   key={char.id}
                   style={[
                     styles.characterCard,
+                    char.isEvolved && { borderColor: rarityColor, shadowColor: rarityColor, shadowOpacity: 0.6, shadowRadius: 8, elevation: 4 },
                     isSelected && {
                       borderColor: COLORS.primary,
                       borderWidth: 2,
@@ -126,23 +215,21 @@ export default function CollectionScreen() {
                     },
                   ]}
                   onPress={() => handleSelectCharacter(char)}
+                  onLongPress={() => handleCardLongPress(char)}
                   activeOpacity={0.8}
                 >
                   {/* Rarity indicator dots */}
                   <View style={styles.rarityDots}>
                     {Array.from(
-                      { length: FILTER_TABS.indexOf(char.rarity as FilterTab) },
+                      { length: Math.min(RARITY_TABS.indexOf(char.rarity as RarityFilter), 6) },
                       (_, i) => (
-                        <View
-                          key={i}
-                          style={[styles.rarityDot, { backgroundColor: rarityColor }]}
-                        />
+                        <View key={i} style={[styles.rarityDot, { backgroundColor: rarityColor }]} />
                       )
                     )}
                   </View>
 
                   {/* Character preview area */}
-                  <View style={styles.previewArea}>
+                  <View style={[styles.previewArea, char.isEvolved && { borderColor: rarityColor }]}>
                     <Text style={[styles.previewIcon, { color: elementInfo?.color || COLORS.textDim }]}>
                       {'\u25C8'}
                     </Text>
@@ -150,7 +237,7 @@ export default function CollectionScreen() {
 
                   {/* Character name */}
                   <Text style={styles.charName} numberOfLines={1}>
-                    {char.name || 'No Name'}
+                    {char.name || char.specialMoveName || 'No Name'}
                   </Text>
 
                   {/* Element and rarity */}
@@ -187,19 +274,18 @@ export default function CollectionScreen() {
             })}
           </View>
         ) : (
-          /* Empty State */
           <CyberCard style={styles.emptyCard} accentColor={COLORS.textDim}>
             <View style={styles.emptyState}>
               <Text style={styles.emptyIcon}>{'\u25A1'}</Text>
               <Text style={styles.emptyTitle}>
-                {activeFilter === 'ALL'
+                {rarityFilter === 'ALL' && elementFilter === 'ALL'
                   ? 'No characters yet.'
-                  : `No ${activeFilter} characters.`}
+                  : 'No matching characters.'}
               </Text>
               <Text style={styles.emptySubtext}>
-                {activeFilter === 'ALL'
+                {rarityFilter === 'ALL' && elementFilter === 'ALL'
                   ? 'Draw your first character!'
-                  : 'Draw more characters to find this rarity.'}
+                  : 'Try different filters or draw more characters.'}
               </Text>
             </View>
           </CyberCard>
@@ -234,6 +320,76 @@ const styles = StyleSheet.create({
     letterSpacing: 3,
     marginTop: 4,
   },
+  completionCard: {
+    marginBottom: 16,
+  },
+  completionHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 8,
+  },
+  completionTitle: {
+    fontFamily: FONTS.heading,
+    fontSize: 13,
+    color: COLORS.primary,
+    letterSpacing: 2,
+  },
+  completionPercent: {
+    fontFamily: FONTS.mono,
+    fontSize: 20,
+    fontWeight: '700',
+  },
+  completionBar: {
+    height: 4,
+    backgroundColor: 'rgba(255,255,255,0.1)',
+    borderRadius: 2,
+    overflow: 'hidden',
+    marginBottom: 12,
+  },
+  completionFill: {
+    height: '100%',
+    borderRadius: 2,
+  },
+  matrixContainer: {
+    marginBottom: 8,
+  },
+  matrixRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginVertical: 1,
+  },
+  matrixCorner: {
+    width: 24,
+    fontSize: 9,
+    fontFamily: FONTS.mono,
+    color: COLORS.textDim,
+  },
+  matrixHeader: {
+    flex: 1,
+    textAlign: 'center',
+    fontSize: 8,
+    fontFamily: FONTS.mono,
+    letterSpacing: 0.5,
+  },
+  matrixElementLabel: {
+    width: 24,
+    fontSize: 10,
+    fontFamily: FONTS.body,
+    fontWeight: '700',
+  },
+  matrixCell: {
+    flex: 1,
+    textAlign: 'center',
+    fontSize: 10,
+  },
+  completionCount: {
+    fontFamily: FONTS.mono,
+    fontSize: 10,
+    color: COLORS.textDim,
+    textAlign: 'center',
+    letterSpacing: 1,
+  },
   countRow: {
     marginBottom: 12,
   },
@@ -253,7 +409,7 @@ const styles = StyleSheet.create({
   filterRow: {
     flexDirection: 'row',
     gap: 6,
-    marginBottom: 16,
+    marginBottom: 10,
   },
   filterTab: {
     flex: 1,
@@ -266,7 +422,7 @@ const styles = StyleSheet.create({
   },
   filterTabText: {
     fontFamily: FONTS.heading,
-    fontSize: 11,
+    fontSize: 10,
     fontWeight: '700',
     letterSpacing: 1,
   },
