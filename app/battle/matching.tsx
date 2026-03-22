@@ -18,7 +18,7 @@ import { ScanlineOverlay, GridBackground } from '../../src/components/cyber/Scan
 import { useBattleStore } from '../../src/stores/battleStore';
 import { generateRandomEnemy, determineRarity } from '../../src/engine/drawingAnalyzer';
 import { runBattle } from '../../src/engine/battleEngine';
-import { joinMatchmaking, leaveMatchmaking, subscribeToMatchmaking, requestBattle } from '../../src/services/battleService';
+import { joinMatchmaking, leaveMatchmaking, subscribeToMatchmaking } from '../../src/services/battleService';
 import { getFriends } from '../../src/services/friendService';
 import { playSE, SE } from '../../src/services/soundService';
 import type { Character, Friend } from '../../src/types';

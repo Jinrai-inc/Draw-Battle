@@ -116,7 +116,13 @@ export default function ResultScreen() {
   };
 
   const handleRematch = () => {
+    // Preserve playerCharacter for rematch, only reset battle state
+    const savedChar = playerCharacter;
     reset();
+    if (savedChar) {
+      useBattleStore.getState().setPlayerCharacter(savedChar);
+      useBattleStore.getState().setPhase('matching');
+    }
     router.replace('/battle/matching');
   };
 
