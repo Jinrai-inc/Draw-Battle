@@ -19,6 +19,7 @@ import { useAuthStore } from '../../src/stores/authStore';
 import { useDailyMissionStore } from '../../src/stores/dailyMissionStore';
 import { useLanguageStore } from '../../src/stores/languageStore';
 import { analyzeDrawing, generateStats, determineElement, determineRarity } from '../../src/engine/drawingAnalyzer';
+import { playSE, SE } from '../../src/services/soundService';
 import type { Character } from '../../src/types';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
@@ -162,6 +163,7 @@ export default function DrawScreen() {
   }, [updateCurrentSvg]);
 
   const handleTouchStart = useCallback((e: any) => {
+    playSE(SE.DRAW_START);
     const touch = e.nativeEvent;
     const x = touch.locationX;
     const y = touch.locationY;
@@ -228,6 +230,7 @@ export default function DrawScreen() {
       return;
     }
 
+    playSE(SE.DRAW_COMPLETE);
     const pixelData = generateMockPixelData(completedPaths, CANVAS_SIZE);
     const analysis = analyzeDrawing(pixelData, 64, 64);
     const stats = generateStats(analysis);

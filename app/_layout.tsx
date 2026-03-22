@@ -9,6 +9,7 @@ import * as SplashScreen from 'expo-splash-screen';
 import { COLORS } from '../src/config/gameConfig';
 import { useAuthStore } from '../src/stores/authStore';
 import { supabase } from '../src/services/supabase';
+import { initSound } from '../src/services/soundService';
 
 // Keep splash screen visible while fonts load
 SplashScreen.preventAutoHideAsync().catch(() => {});
@@ -31,9 +32,10 @@ export default function RootLayout() {
     }
   }, [fontsLoaded]);
 
-  // Initialize auth on mount
+  // Initialize auth and sound on mount
   useEffect(() => {
     initialize();
+    initSound();
 
     // Listen for auth state changes (login/logout/OAuth callback)
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {

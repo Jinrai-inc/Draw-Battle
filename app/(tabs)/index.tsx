@@ -3,6 +3,7 @@ import { View, Text, StyleSheet, ScrollView } from 'react-native';
 import { useRouter } from 'expo-router';
 import { COLORS, FONTS } from '../../src/config/gameConfig';
 import { CyberButton, CyberCard, GlowText } from '../../src/components/cyber';
+import { playBGM, BGM } from '../../src/services/soundService';
 import { ScanlineOverlay, GridBackground } from '../../src/components/cyber/ScanlineOverlay';
 import { useCollectionStore } from '../../src/stores/collectionStore';
 import { useAuthStore } from '../../src/stores/authStore';
@@ -32,6 +33,11 @@ export default function HomeScreen() {
       initMissions(user.id);
     }
   }, [user?.id, isGuest]);
+
+  // Play menu BGM when home screen mounts
+  useEffect(() => {
+    playBGM(BGM.MENU);
+  }, []);
 
   const missionDefs = [
     { type: 'login' as const, label: t('mission_login'), desc: t('mission_login_desc'), icon: '\u25C8' },
