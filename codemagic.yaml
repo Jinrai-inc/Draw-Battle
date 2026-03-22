@@ -1,18 +1,25 @@
 workflows:
   # ============================================
-  # iOS Build (EAS Build)
+  # iOS Native Build → TestFlight
   # ============================================
-  ios-build:
-    name: iOS Build (EAS)
-    max_build_duration: 60
+  ios-testflight:
+    name: iOS TestFlight Build
+    max_build_duration: 120
     instance_type: mac_mini_m2
+    integrations:
+      app_store_connect: CodemagicASC   # Codemagic側で設定するApp Store Connect API Key名
     environment:
-      groups:
-        - expo         # EXPO_TOKEN
-        - app_store    # APPLE_ID, ASC_APP_ID, APPLE_TEAM_ID (submit時のみ)
+      ios_signing:
+        distribution_type: app_store
+        bundle_identifier: com.drawbattle.app
       node: 20
+      cocoapods: default
+      xcode: latest
       vars:
-        EXPO_NO_TELEMETRY: "1"
+        BUNDLE_ID: "com.drawbattle.app"
+        APP_NAME: "Draw Battle"
+        XCODE_WORKSPACE: "ios/DrawBattle.xcworkspace"
+        XCODE_SCHEME: "DrawBattle"
     triggering:
       events:
         - push
@@ -23,7 +30,8 @@ workflows:
           include: true
       cancel_previous_builds: true
     scripts:
-      - name: Install dependencies
+      # --- 依存関係インストール ---
+      - name: Install Node dependencies
         script: |
           npm ci
 
@@ -32,29 +40,66 @@ workflows:
           npm test -- --passWithNoTests
         ignore_failure: true
 
-      - name: Install EAS CLI
+      # --- ネイティブプロジェクト生成 ---
+      - name: Generate native iOS project
         script: |
-          npm install -g eas-cli
+          npx expo prebuild --platform ios --clean
 
-      - name: Run EAS Build (iOS)
+      # --- CocoaPods ---
+      - name: Install CocoaPods
         script: |
-          eas build --platform ios --profile production --non-interactive --no-wait
+          cd ios && pod install
+
+      # --- コード署名 (Codemagic自動管理) ---
+      - name: Set up code signing
+        script: |
+          xcode-project use-profiles
+
+      # --- ビルド番号自動インクリメント ---
+      - name: Increment build number
+        script: |
+          cd ios
+          LATEST_BUILD=$(app-store-connect get-latest-testflight-build-number "$BUNDLE_ID" || echo 0)
+          agvtool new-version -all $((LATEST_BUILD + 1))
+
+      # --- Xcodeビルド ---
+      - name: Build iOS app
+        script: |
+          xcode-project build-ipa \
+            --workspace "$XCODE_WORKSPACE" \
+            --scheme "$XCODE_SCHEME"
+
     artifacts:
-      - build/*.ipa
+      - build/ios/ipa/*.ipa
+      - /tmp/xcodebuild_logs/*.log
+      - $HOME/Library/Developer/Xcode/DerivedData/**/Build/**/*.dSYM
+
+    publishing:
+      app_store_connect:
+        auth: integration
+        submit_to_testflight: true
+        beta_groups:
+          - "Internal Testers"
 
   # ============================================
-  # iOS Preview Build (内部テスト用)
+  # iOS Preview Build (PRテスト用 - AdHoc)
   # ============================================
   ios-preview:
-    name: iOS Preview Build
-    max_build_duration: 60
+    name: iOS Preview (AdHoc)
+    max_build_duration: 120
     instance_type: mac_mini_m2
+    integrations:
+      app_store_connect: CodemagicASC
     environment:
-      groups:
-        - expo
+      ios_signing:
+        distribution_type: ad_hoc
+        bundle_identifier: com.drawbattle.app
       node: 20
+      cocoapods: default
+      xcode: latest
       vars:
-        EXPO_NO_TELEMETRY: "1"
+        XCODE_WORKSPACE: "ios/DrawBattle.xcworkspace"
+        XCODE_SCHEME: "DrawBattle"
     triggering:
       events:
         - pull_request
@@ -63,7 +108,7 @@ workflows:
           include: true
       cancel_previous_builds: true
     scripts:
-      - name: Install dependencies
+      - name: Install Node dependencies
         script: |
           npm ci
 
@@ -72,43 +117,23 @@ workflows:
           npm test -- --passWithNoTests
         ignore_failure: true
 
-      - name: Install EAS CLI
+      - name: Generate native iOS project
         script: |
-          npm install -g eas-cli
+          npx expo prebuild --platform ios --clean
 
-      - name: Run EAS Build (iOS Preview)
+      - name: Install CocoaPods
         script: |
-          eas build --platform ios --profile preview --non-interactive --no-wait
+          cd ios && pod install
 
-  # ============================================
-  # iOS Submit to App Store
-  # ============================================
-  ios-submit:
-    name: iOS Submit to App Store
-    max_build_duration: 30
-    instance_type: mac_mini_m2
-    environment:
-      groups:
-        - expo
-        - app_store
-      node: 20
-      vars:
-        EXPO_NO_TELEMETRY: "1"
-    triggering:
-      events:
-        - tag
-      tag_patterns:
-        - pattern: "v*"
-          include: true
-    scripts:
-      - name: Install dependencies
+      - name: Set up code signing
         script: |
-          npm ci
+          xcode-project use-profiles
 
-      - name: Install EAS CLI
+      - name: Build iOS app
         script: |
-          npm install -g eas-cli
+          xcode-project build-ipa \
+            --workspace "$XCODE_WORKSPACE" \
+            --scheme "$XCODE_SCHEME"
 
-      - name: Submit to App Store
-        script: |
-          eas submit --platform ios --profile production --non-interactive
+    artifacts:
+      - build/ios/ipa/*.ipa

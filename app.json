@@ -41,12 +41,6 @@
           "photosPermission": "キャラクター作成のために画像を選択します"
         }
       ]
-    ],
-    "extra": {
-      "eas": {
-        "projectId": "YOUR_EAS_PROJECT_ID"
-      }
-    },
-    "owner": "YOUR_EXPO_ACCOUNT"
+    ]
   }
 }
