@@ -7,8 +7,10 @@ import {
   ScrollView,
   Alert,
   TouchableOpacity,
+  Image,
 } from 'react-native';
 import Svg, { Path } from 'react-native-svg';
+import * as ImagePicker from 'expo-image-picker';
 import { useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { COLORS, FONTS, GAME_CONFIG } from '../../src/config/gameConfig';
@@ -125,6 +127,37 @@ function pixelDataToBase64(data: Uint8Array): string {
   return btoa(binary);
 }
 
+/** Generate pseudo pixel data from a base64 string for analysis. */
+function generatePixelDataFromBase64(base64: string): Uint8Array {
+  const w = 64;
+  const h = 64;
+  const data = new Uint8Array(w * h * 4);
+
+  // Decode base64 to get raw bytes for hashing
+  const raw = atob(base64.substring(0, Math.min(base64.length, 8192)));
+  const bytes = new Uint8Array(raw.length);
+  for (let i = 0; i < raw.length; i++) {
+    bytes[i] = raw.charCodeAt(i);
+  }
+
+  // Fill pixel data using image bytes as seed for variety
+  for (let y = 0; y < h; y++) {
+    for (let x = 0; x < w; x++) {
+      const idx = (y * w + x) * 4;
+      const byteIdx = ((y * w + x) * 3) % bytes.length;
+      const r = bytes[byteIdx % bytes.length];
+      const g = bytes[(byteIdx + 1) % bytes.length];
+      const b = bytes[(byteIdx + 2) % bytes.length];
+      data[idx] = r;
+      data[idx + 1] = g;
+      data[idx + 2] = b;
+      data[idx + 3] = 255;
+    }
+  }
+
+  return data;
+}
+
 export default function DrawScreen() {
   const router = useRouter();
   const { setDraft } = useCollectionStore();
@@ -133,6 +166,8 @@ export default function DrawScreen() {
   const t = useLanguageStore((s) => s.t);
 
   const [completedPaths, setCompletedPaths] = useState<SvgPathData[]>([]);
+  const [pickedImageUri, setPickedImageUri] = useState<string | null>(null);
+  const [pickedImageBase64, setPickedImageBase64] = useState<string | null>(null);
   const [currentSvgPath, setCurrentSvgPath] = useState<string>('');
   const [currentColor, setCurrentColor] = useState('#000000');
   const [brushSize, setBrushSize] = useState(8);
@@ -224,24 +259,70 @@ export default function DrawScreen() {
     setCompletedPaths((prev) => prev.slice(0, -1));
   }, []);
 
+  const handlePickImage = useCallback(async () => {
+    const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (status !== 'granted') {
+      Alert.alert('', 'カメラロールへのアクセス許可が必要です');
+      return;
+    }
+
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ['images'],
+      allowsEditing: true,
+      aspect: [1, 1],
+      quality: 0.8,
+      base64: true,
+    });
+
+    if (!result.canceled && result.assets[0]) {
+      const asset = result.assets[0];
+      setPickedImageUri(asset.uri);
+      setPickedImageBase64(asset.base64 || null);
+      // Clear drawing paths since image is chosen
+      setCompletedPaths([]);
+      setCurrentSvgPath('');
+      pointsRef.current = [];
+    }
+  }, []);
+
+  const handleClearPickedImage = useCallback(() => {
+    setPickedImageUri(null);
+    setPickedImageBase64(null);
+  }, []);
+
   const handleComplete = useCallback(() => {
-    if (completedPaths.length === 0) {
+    const hasDrawing = completedPaths.length > 0;
+    const hasPickedImage = !!pickedImageBase64;
+
+    if (!hasDrawing && !hasPickedImage) {
       Alert.alert('', t('draw_no_data'));
       return;
     }
 
     playSE(SE.DRAW_COMPLETE);
-    const pixelData = generateMockPixelData(completedPaths, CANVAS_SIZE);
+
+    let pixelData: Uint8Array;
+    let imageBase64: string;
+
+    if (hasPickedImage) {
+      // Use picked image
+      pixelData = generatePixelDataFromBase64(pickedImageBase64!);
+      imageBase64 = pickedImageBase64!;
+    } else {
+      // Use hand-drawn paths
+      pixelData = generateMockPixelData(completedPaths, CANVAS_SIZE);
+      imageBase64 = pixelDataToBase64(pixelData);
+    }
+
     const analysis = analyzeDrawing(pixelData, 64, 64);
     const stats = generateStats(analysis);
     const element = determineElement(analysis);
     const rarity = determineRarity(stats.totalStats);
-    const imageBase64 = pixelDataToBase64(pixelData);
 
     const newCharacter: Character = {
       id: Date.now().toString() + Math.random().toString(36).substring(2, 9),
       userId: user?.id || 'local',
-      imageUrl: '',
+      imageUrl: hasPickedImage ? pickedImageUri || '' : '',
       name: undefined,
       specialMoveName: '',
       stats,
@@ -256,9 +337,11 @@ export default function DrawScreen() {
 
     setDraft(newCharacter, imageBase64);
     setCompletedPaths([]);
+    setPickedImageUri(null);
+    setPickedImageBase64(null);
     if (user?.id) completeMission(user.id, 'draw');
     router.push('/character/naming');
-  }, [completedPaths, setDraft, user, router, t]);
+  }, [completedPaths, pickedImageBase64, pickedImageUri, setDraft, user, router, t]);
 
   const totalPoints = completedPaths.reduce((sum, p) => sum + (p.points?.length || 0), 0);
 
@@ -283,116 +366,161 @@ export default function DrawScreen() {
 
         {/* Canvas - using direct touch handlers instead of PanResponder */}
         <View style={styles.canvasWrapper}>
-          <View
-            ref={canvasRef}
-            style={[styles.canvas, { width: CANVAS_SIZE, height: CANVAS_SIZE }]}
-            onTouchStart={handleTouchStart}
-            onTouchMove={handleTouchMove}
-            onTouchEnd={handleTouchEnd}
-            onTouchCancel={handleTouchEnd}
-          >
-            <Svg width={CANVAS_SIZE} height={CANVAS_SIZE} style={StyleSheet.absoluteFill}>
-              {/* Completed paths */}
-              {completedPaths.map((path, idx) => (
-                <Path
-                  key={idx}
-                  d={path.d}
-                  stroke={path.color}
-                  strokeWidth={path.width}
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  fill="none"
-                />
-              ))}
-              {/* Current drawing path */}
-              {currentSvgPath !== '' && (
-                <Path
-                  d={currentSvgPath}
-                  stroke={drawingColorRef.current}
-                  strokeWidth={drawingWidthRef.current}
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  fill="none"
-                />
+          {pickedImageUri ? (
+            <View style={[styles.canvas, { width: CANVAS_SIZE, height: CANVAS_SIZE }]}>
+              <Image
+                source={{ uri: pickedImageUri }}
+                style={{ width: CANVAS_SIZE, height: CANVAS_SIZE, borderRadius: 2 }}
+                resizeMode="cover"
+              />
+              <TouchableOpacity
+                style={styles.clearPickedBtn}
+                onPress={handleClearPickedImage}
+                activeOpacity={0.7}
+              >
+                <Text style={styles.clearPickedText}>{'\u2715'}</Text>
+              </TouchableOpacity>
+            </View>
+          ) : (
+            <View
+              ref={canvasRef}
+              style={[styles.canvas, { width: CANVAS_SIZE, height: CANVAS_SIZE }]}
+              onTouchStart={handleTouchStart}
+              onTouchMove={handleTouchMove}
+              onTouchEnd={handleTouchEnd}
+              onTouchCancel={handleTouchEnd}
+            >
+              <Svg width={CANVAS_SIZE} height={CANVAS_SIZE} style={StyleSheet.absoluteFill}>
+                {/* Completed paths */}
+                {completedPaths.map((path, idx) => (
+                  <Path
+                    key={idx}
+                    d={path.d}
+                    stroke={path.color}
+                    strokeWidth={path.width}
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    fill="none"
+                  />
+                ))}
+                {/* Current drawing path */}
+                {currentSvgPath !== '' && (
+                  <Path
+                    d={currentSvgPath}
+                    stroke={drawingColorRef.current}
+                    strokeWidth={drawingWidthRef.current}
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    fill="none"
+                  />
+                )}
+              </Svg>
+              {completedPaths.length === 0 && !isDrawing && (
+                <View style={styles.canvasPlaceholder}>
+                  <Text style={styles.placeholderText}>{t('draw_here')}</Text>
+                  <Text style={styles.placeholderSubtext}>{t('draw_finger_hint')}</Text>
+                </View>
               )}
-            </Svg>
-            {completedPaths.length === 0 && !isDrawing && (
-              <View style={styles.canvasPlaceholder}>
-                <Text style={styles.placeholderText}>{t('draw_here')}</Text>
-                <Text style={styles.placeholderSubtext}>{t('draw_finger_hint')}</Text>
-              </View>
-            )}
-          </View>
+            </View>
+          )}
         </View>
+
+        {/* Image Picker */}
+        {!pickedImageUri && (
+          <View style={styles.imagePickerRow}>
+            <View style={styles.dividerLine} />
+            <Text style={styles.orText}>{t('draw_or')}</Text>
+            <View style={styles.dividerLine} />
+          </View>
+        )}
+        {!pickedImageUri && (
+          <CyberButton
+            title={'\uD83D\uDDBC ' + t('draw_pick_image')}
+            onPress={handlePickImage}
+            color={COLORS.secondary}
+            size="medium"
+            style={styles.pickImageBtn}
+          />
+        )}
 
         {/* Drawing Info */}
-        <View style={styles.drawInfo}>
-          <Text style={styles.infoText}>
-            {t('draw_strokes')}: {completedPaths.length} {'\u25C6'} {t('draw_points')}: {totalPoints}
-          </Text>
-        </View>
+        {!pickedImageUri && (
+          <View style={styles.drawInfo}>
+            <Text style={styles.infoText}>
+              {t('draw_strokes')}: {completedPaths.length} {'\u25C6'} {t('draw_points')}: {totalPoints}
+            </Text>
+          </View>
+        )}
 
         {/* Color Palette */}
-        <CyberCard style={styles.toolCard}>
-          <Text style={styles.toolLabel}>{t('draw_color')}</Text>
-          <View style={styles.paletteRow}>
-            {PALETTE_COLORS.map((color) => (
-              <TouchableOpacity
-                key={color}
-                style={[
-                  styles.colorSwatch,
-                  { backgroundColor: color },
-                  currentColor === color && styles.colorSwatchSelected,
-                  currentColor === color && { borderColor: COLORS.primary },
-                ]}
-                onPress={() => setCurrentColor(color)}
-                activeOpacity={0.7}
-              />
-            ))}
-          </View>
-        </CyberCard>
+        {!pickedImageUri && (
+          <CyberCard style={styles.toolCard}>
+            <Text style={styles.toolLabel}>{t('draw_color')}</Text>
+            <View style={styles.paletteRow}>
+              {PALETTE_COLORS.map((color) => (
+                <TouchableOpacity
+                  key={color}
+                  style={[
+                    styles.colorSwatch,
+                    { backgroundColor: color },
+                    currentColor === color && styles.colorSwatchSelected,
+                    currentColor === color && { borderColor: COLORS.primary },
+                  ]}
+                  onPress={() => setCurrentColor(color)}
+                  activeOpacity={0.7}
+                />
+              ))}
+            </View>
+          </CyberCard>
+        )}
 
         {/* Brush Size */}
-        <CyberCard style={styles.toolCard}>
-          <Text style={styles.toolLabel}>{t('draw_brush_size')}</Text>
-          <View style={styles.brushRow}>
-            {BRUSH_SIZES.map((bs) => (
-              <CyberButton
-                key={bs.label}
-                title={bs.label}
-                onPress={() => setBrushSize(bs.value)}
-                color={brushSize === bs.value ? COLORS.primary : COLORS.textDim}
-                size="small"
-                style={styles.brushButton}
-              />
-            ))}
-          </View>
-        </CyberCard>
+        {!pickedImageUri && (
+          <CyberCard style={styles.toolCard}>
+            <Text style={styles.toolLabel}>{t('draw_brush_size')}</Text>
+            <View style={styles.brushRow}>
+              {BRUSH_SIZES.map((bs) => (
+                <CyberButton
+                  key={bs.label}
+                  title={bs.label}
+                  onPress={() => setBrushSize(bs.value)}
+                  color={brushSize === bs.value ? COLORS.primary : COLORS.textDim}
+                  size="small"
+                  style={styles.brushButton}
+                />
+              ))}
+            </View>
+          </CyberCard>
+        )}
 
         {/* Actions */}
         <View style={styles.actionRow}>
-          <CyberButton
-            title={t('draw_undo')}
-            onPress={handleUndo}
-            color={COLORS.textDim}
-            size="medium"
-            style={styles.actionBtn}
-            disabled={completedPaths.length === 0}
-          />
-          <CyberButton
-            title={t('draw_clear')}
-            onPress={handleClear}
-            color={COLORS.danger}
-            size="medium"
-            style={styles.actionBtn}
-          />
+          {!pickedImageUri && (
+            <>
+              <CyberButton
+                title={t('draw_undo')}
+                onPress={handleUndo}
+                color={COLORS.textDim}
+                size="medium"
+                style={styles.actionBtn}
+                disabled={completedPaths.length === 0}
+              />
+              <CyberButton
+                title={t('draw_clear')}
+                onPress={handleClear}
+                color={COLORS.danger}
+                size="medium"
+                style={styles.actionBtn}
+              />
+            </>
+          )}
           <CyberButton
             title={t('draw_complete')}
             onPress={handleComplete}
             color={COLORS.success}
             size="medium"
-            style={styles.actionBtn}
-            disabled={completedPaths.length === 0}
+            style={pickedImageUri ? styles.actionBtnFull : styles.actionBtn}
+            disabled={completedPaths.length === 0 && !pickedImageUri}
           />
         </View>
       </ScrollView>
@@ -508,5 +636,44 @@ const styles = StyleSheet.create({
   },
   actionBtn: {
     flex: 1,
+  },
+  actionBtnFull: {
+    flex: 1,
+  },
+  imagePickerRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginVertical: 10,
+    gap: 10,
+  },
+  dividerLine: {
+    flex: 1,
+    height: 1,
+    backgroundColor: 'rgba(0,255,255,0.15)',
+  },
+  orText: {
+    fontFamily: FONTS.mono,
+    fontSize: 11,
+    color: COLORS.textDim,
+    letterSpacing: 2,
+  },
+  pickImageBtn: {
+    marginBottom: 12,
+  },
+  clearPickedBtn: {
+    position: 'absolute',
+    top: 8,
+    right: 8,
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: 'rgba(0,0,0,0.6)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  clearPickedText: {
+    color: '#FFFFFF',
+    fontSize: 16,
+    fontWeight: '700',
   },
 });

@@ -124,6 +124,7 @@ export default function CharacterDetailScreen() {
           ]}>
             <CharacterSprite
               imageBase64={character.imageBase64 || draftImageBase64 || undefined}
+              imageUrl={character.imageUrl}
               size={100}
               animate={true}
               glowColor={elementDef?.color || COLORS.primary}

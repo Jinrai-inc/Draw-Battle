@@ -14,7 +14,10 @@
     },
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.drawbattle.app"
+      "bundleIdentifier": "com.drawbattle.app",
+      "infoPlist": {
+        "NSPhotoLibraryUsageDescription": "キャラクター作成のために画像を選択します"
+      }
     },
     "android": {
       "adaptiveIcon": {
@@ -31,7 +34,13 @@
     },
     "plugins": [
       "expo-router",
-      "expo-font"
+      "expo-font",
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "キャラクター作成のために画像を選択します"
+        }
+      ]
     ]
   }
 }

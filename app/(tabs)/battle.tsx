@@ -99,9 +99,10 @@ export default function BattleScreen() {
                     activeOpacity={0.7}
                   >
                     <View style={[styles.pickerIcon, { borderColor: elInfo?.color || COLORS.textDim }]}>
-                      {char.imageBase64 ? (
+                      {(char.imageBase64 || char.imageUrl) ? (
                         <CharacterSprite
                           imageBase64={char.imageBase64}
+                          imageUrl={char.imageUrl}
                           size={40}
                           animate={false}
                           glowColor={elInfo?.color || COLORS.primary}

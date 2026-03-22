@@ -1,10 +1,12 @@
 import React, { useEffect, useRef } from 'react';
-import { View, Animated, Easing, StyleSheet } from 'react-native';
+import { View, Image, Animated, Easing, StyleSheet } from 'react-native';
 import { COLORS } from '../config/gameConfig';
 
 interface Props {
   /** base64-encoded RGBA pixel data (64x64) */
   imageBase64?: string;
+  /** URL or local URI for picked images */
+  imageUrl?: string;
   /** display size in points */
   size?: number;
   /** enable idle bobbing animation */
@@ -21,7 +23,7 @@ interface Props {
  * pixels (see generateMockPixelData in draw.tsx). We render each opaque
  * pixel as a tiny colored View.
  */
-export function CharacterSprite({ imageBase64, size = 120, animate = true, glowColor = COLORS.primary }: Props) {
+export function CharacterSprite({ imageBase64, imageUrl, size = 120, animate = true, glowColor = COLORS.primary }: Props) {
   const bobY = useRef(new Animated.Value(0)).current;
   const glowOpacity = useRef(new Animated.Value(0.4)).current;
 
@@ -144,7 +146,10 @@ export function CharacterSprite({ imageBase64, size = 120, animate = true, glowC
     }
   }, [imageBase64, size]);
 
-  if (!pixels) {
+  // Determine if we should show a picked image (URL/URI) instead of pixel art
+  const showPickedImage = !pixels && imageUrl && imageUrl.length > 0;
+
+  if (!pixels && !showPickedImage) {
     return (
       <Animated.View
         style={[
@@ -181,7 +186,15 @@ export function CharacterSprite({ imageBase64, size = 120, animate = true, glowC
           },
         ]}
       >
-        {pixels}
+        {showPickedImage ? (
+          <Image
+            source={{ uri: imageUrl }}
+            style={{ width: size, height: size, borderRadius: 6 }}
+            resizeMode="cover"
+          />
+        ) : (
+          pixels
+        )}
       </Animated.View>
     </View>
   );

@@ -300,6 +300,7 @@ export default function SummonScreen() {
           <View style={styles.characterArea}>
             <CharacterSprite
               imageBase64={playerCharacter.imageBase64}
+              imageUrl={playerCharacter.imageUrl}
               size={90}
               animate={true}
               glowColor={playerColor}
@@ -392,6 +393,7 @@ export default function SummonScreen() {
           <View style={styles.characterArea}>
             <CharacterSprite
               imageBase64={enemyCharacter.imageBase64}
+              imageUrl={enemyCharacter.imageUrl}
               size={90}
               animate={true}
               glowColor={enemyColor}

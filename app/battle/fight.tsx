@@ -385,9 +385,10 @@ export default function FightScreen() {
         {/* Player character */}
         <View style={styles.characterDisplay}>
           <View style={[styles.characterFrame, { borderColor: COLORS.primary }]}>
-            {playerCharacter.imageBase64 ? (
+            {(playerCharacter.imageBase64 || playerCharacter.imageUrl) ? (
               <CharacterSprite
                 imageBase64={playerCharacter.imageBase64}
+                imageUrl={playerCharacter.imageUrl}
                 size={80}
                 animate={true}
                 glowColor={COLORS.primary}
@@ -420,9 +421,10 @@ export default function FightScreen() {
         {/* Enemy character */}
         <View style={styles.characterDisplay}>
           <View style={[styles.characterFrame, { borderColor: COLORS.danger }]}>
-            {enemyCharacter.imageBase64 ? (
+            {(enemyCharacter.imageBase64 || enemyCharacter.imageUrl) ? (
               <CharacterSprite
                 imageBase64={enemyCharacter.imageBase64}
+                imageUrl={enemyCharacter.imageUrl}
                 size={80}
                 animate={true}
                 glowColor={COLORS.danger}

@@ -84,6 +84,8 @@ const translations = {
   draw_complete: { ja: '完成！', en: 'COMPLETE', zh: '完成', ko: '완성!', es: '¡COMPLETAR!' },
   draw_undo: { ja: '元に戻す', en: 'UNDO', zh: '撤销', ko: '실행 취소', es: 'DESHACER' },
   draw_no_data: { ja: 'まだ何も描いてません！', en: 'Draw something first!', zh: '请先画点什么！', ko: '먼저 뭔가 그려주세요!', es: '¡Dibuja algo primero!' },
+  draw_pick_image: { ja: '画像から作成', en: 'FROM IMAGE', zh: '从图片创建', ko: '이미지에서 생성', es: 'DESDE IMAGEN' },
+  draw_or: { ja: 'または', en: 'OR', zh: '或者', ko: '또는', es: 'O' },
 
   // ===== Missions =====
   mission_login: { ja: 'ログイン', en: 'Login', zh: '登录', ko: '로그인', es: 'Iniciar sesión' },

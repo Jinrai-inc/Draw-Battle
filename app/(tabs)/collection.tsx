@@ -231,9 +231,10 @@ export default function CollectionScreen() {
 
                   {/* Character preview area */}
                   <View style={[styles.previewArea, char.isEvolved && { borderColor: rarityColor }]}>
-                    {char.imageBase64 ? (
+                    {(char.imageBase64 || char.imageUrl) ? (
                       <CharacterSprite
                         imageBase64={char.imageBase64}
+                        imageUrl={char.imageUrl}
                         size={70}
                         animate={false}
                         glowColor={elementInfo?.color || COLORS.primary}
