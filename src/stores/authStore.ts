@@ -1,16 +1,18 @@
 import { create } from 'zustand';
 import type { User } from '../types';
 import { supabase } from '../services/supabase';
-import { getUserProfile, updateLastLogin } from '../services/authService';
+import { getUserProfile, updateLastLogin, getGuestProfile, clearGuestProfile } from '../services/authService';
 
 interface AuthState {
   user: User | null;
   isLoading: boolean;
   isAuthenticated: boolean;
+  isGuest: boolean;
   needsNickname: boolean;
   setUser: (user: User | null) => void;
   setLoading: (loading: boolean) => void;
   setNeedsNickname: (needs: boolean) => void;
+  setGuest: (user: User) => void;
   initialize: () => Promise<void>;
   logout: () => void;
 }
@@ -37,15 +39,34 @@ export const useAuthStore = create<AuthState>((set) => ({
   user: null,
   isLoading: true,
   isAuthenticated: false,
+  isGuest: false,
   needsNickname: false,
 
-  setUser: (user) => set({ user, isAuthenticated: !!user, isLoading: false, needsNickname: false }),
+  setUser: (user) => set({ user, isAuthenticated: !!user, isLoading: false, needsNickname: false, isGuest: false }),
   setLoading: (isLoading) => set({ isLoading }),
   setNeedsNickname: (needsNickname) => set({ needsNickname }),
-  logout: () => set({ user: null, isAuthenticated: false, needsNickname: false }),
+  setGuest: (user) => set({ user, isAuthenticated: true, isGuest: true, isLoading: false, needsNickname: false }),
+  logout: async () => {
+    await clearGuestProfile();
+    set({ user: null, isAuthenticated: false, isGuest: false, needsNickname: false });
+  },
 
   initialize: async () => {
     try {
+      // First check for guest profile
+      const guestProfile = await getGuestProfile();
+      if (guestProfile) {
+        set({
+          user: mapDbUser(guestProfile),
+          isAuthenticated: true,
+          isGuest: true,
+          needsNickname: false,
+          isLoading: false,
+        });
+        return;
+      }
+
+      // Then check Supabase session
       const { data: { session } } = await supabase.auth.getSession();
       if (!session?.user) {
         set({ user: null, isAuthenticated: false, isLoading: false });
@@ -54,7 +75,6 @@ export const useAuthStore = create<AuthState>((set) => ({
 
       const profile = await getUserProfile(session.user.id);
       if (!profile) {
-        // Auth exists but no profile yet -> needs nickname setup
         set({ isAuthenticated: true, needsNickname: true, isLoading: false });
         return;
       }
@@ -67,6 +87,20 @@ export const useAuthStore = create<AuthState>((set) => ({
         isLoading: false,
       });
     } catch {
+      // If Supabase fails (no connection), check for guest profile as fallback
+      try {
+        const guestProfile = await getGuestProfile();
+        if (guestProfile) {
+          set({
+            user: mapDbUser(guestProfile),
+            isAuthenticated: true,
+            isGuest: true,
+            needsNickname: false,
+            isLoading: false,
+          });
+          return;
+        }
+      } catch {}
       set({ user: null, isAuthenticated: false, isLoading: false });
     }
   },

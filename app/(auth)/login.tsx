@@ -2,13 +2,16 @@ import React, { useState } from 'react';
 import { View, Text, StyleSheet, Alert, ActivityIndicator, TouchableOpacity } from 'react-native';
 import { useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { Ionicons, FontAwesome } from '@expo/vector-icons';
 import { COLORS, FONTS } from '../../src/config/gameConfig';
 import { GlowText } from '../../src/components/cyber/GlowText';
 import { ScanlineOverlay, GridBackground } from '../../src/components/cyber/ScanlineOverlay';
 import { signInWithGoogle, signInWithApple, signInAsGuest } from '../../src/services/authService';
+import { useAuthStore, mapDbUser } from '../../src/stores/authStore';
 
 export default function LoginScreen() {
   const router = useRouter();
+  const setGuest = useAuthStore((s) => s.setGuest);
   const [loading, setLoading] = useState<string | null>(null);
 
   const handleGoogleSignIn = async () => {
@@ -36,7 +39,10 @@ export default function LoginScreen() {
   const handleGuestSignIn = async () => {
     setLoading('guest');
     try {
-      await signInAsGuest();
+      const guestName = 'ゲスト' + Math.floor(Math.random() * 9000 + 1000);
+      const profile = await signInAsGuest(guestName);
+      setGuest(mapDbUser(profile));
+      router.replace('/(tabs)');
     } catch (err: any) {
       Alert.alert('エラー', err.message || 'ゲストログインに失敗しました');
     } finally {
@@ -50,55 +56,57 @@ export default function LoginScreen() {
       <ScanlineOverlay />
 
       <View style={styles.content}>
+        {/* タイトル */}
         <View style={styles.header}>
           <GlowText size={32} color={COLORS.primary}>DRAW BATTLE</GlowText>
           <Text style={styles.subtitle}>-- CYBER ARENA --</Text>
         </View>
 
+        {/* ログインボタン */}
         <View style={styles.buttons}>
-          {/* Google ログイン */}
+          {/* Google */}
           <TouchableOpacity
-            style={[styles.socialButton, styles.googleButton]}
+            style={[styles.loginButton, styles.googleButton]}
             onPress={handleGoogleSignIn}
             disabled={loading !== null}
-            activeOpacity={0.7}
+            activeOpacity={0.8}
           >
             {loading === 'google' ? (
               <ActivityIndicator size="small" color="#fff" />
             ) : (
               <>
-                <Text style={styles.socialIcon}>G</Text>
-                <Text style={styles.socialText}>Googleでログイン</Text>
+                <FontAwesome name="google" size={20} color="#fff" style={styles.icon} />
+                <Text style={styles.loginText}>Googleでログイン</Text>
               </>
             )}
           </TouchableOpacity>
 
-          {/* Apple ログイン */}
+          {/* Apple */}
           <TouchableOpacity
-            style={[styles.socialButton, styles.appleButton]}
+            style={[styles.loginButton, styles.appleButton]}
             onPress={handleAppleSignIn}
             disabled={loading !== null}
-            activeOpacity={0.7}
+            activeOpacity={0.8}
           >
             {loading === 'apple' ? (
               <ActivityIndicator size="small" color="#fff" />
             ) : (
               <>
-                <Text style={styles.socialIcon}>{'\uF8FF'}</Text>
-                <Text style={styles.socialText}>Appleでログイン</Text>
+                <Ionicons name="logo-apple" size={22} color="#fff" style={styles.icon} />
+                <Text style={styles.loginText}>Appleでログイン</Text>
               </>
             )}
           </TouchableOpacity>
 
-          {/* メールで登録 */}
+          {/* メール */}
           <TouchableOpacity
-            style={[styles.socialButton, styles.emailButton]}
+            style={[styles.loginButton, styles.emailButton]}
             onPress={() => router.push('/(auth)/register')}
             disabled={loading !== null}
-            activeOpacity={0.7}
+            activeOpacity={0.8}
           >
-            <Text style={styles.emailIcon}>✉</Text>
-            <Text style={styles.socialText}>メールで登録 / ログイン</Text>
+            <Ionicons name="mail-outline" size={20} color="#fff" style={styles.icon} />
+            <Text style={styles.loginText}>メールで登録 / ログイン</Text>
           </TouchableOpacity>
 
           {/* 区切り線 */}
@@ -108,26 +116,29 @@ export default function LoginScreen() {
             <View style={styles.dividerLine} />
           </View>
 
-          {/* ゲストログイン */}
+          {/* ゲスト */}
           <TouchableOpacity
-            style={[styles.socialButton, styles.guestButton]}
+            style={[styles.loginButton, styles.guestButton]}
             onPress={handleGuestSignIn}
             disabled={loading !== null}
-            activeOpacity={0.7}
+            activeOpacity={0.8}
           >
             {loading === 'guest' ? (
               <ActivityIndicator size="small" color={COLORS.primary} />
             ) : (
-              <Text style={styles.guestText}>ゲストではじめる</Text>
+              <>
+                <Ionicons name="person-outline" size={20} color={COLORS.primary} style={styles.icon} />
+                <Text style={[styles.loginText, { color: COLORS.primary }]}>
+                  ゲストではじめる
+                </Text>
+              </>
             )}
           </TouchableOpacity>
-          <Text style={styles.guestNote}>
-            ※ゲストデータは端末に保存されます
-          </Text>
+          <Text style={styles.guestNote}>※ログインなしですぐ遊べます</Text>
         </View>
 
         <Text style={styles.terms}>
-          {'登録により利用規約に\n同意したものとみなします'}
+          {'登録により利用規約に同意したものとみなします'}
         </Text>
       </View>
     </SafeAreaView>
@@ -143,7 +154,7 @@ const styles = StyleSheet.create({
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
-    padding: 20,
+    padding: 24,
     zIndex: 10,
   },
   header: {
@@ -160,59 +171,41 @@ const styles = StyleSheet.create({
   buttons: {
     width: '100%',
     maxWidth: 320,
-    gap: 12,
   },
-  socialButton: {
+  loginButton: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     paddingVertical: 14,
     paddingHorizontal: 20,
-    borderRadius: 8,
+    borderRadius: 12,
+    marginBottom: 12,
     minHeight: 52,
   },
   googleButton: {
     backgroundColor: '#4285F4',
   },
   appleButton: {
-    backgroundColor: '#333',
+    backgroundColor: '#333333',
   },
   emailButton: {
-    backgroundColor: 'transparent',
-    borderWidth: 1,
-    borderColor: COLORS.secondary,
+    backgroundColor: '#6B5CE7',
   },
   guestButton: {
     backgroundColor: 'transparent',
-    borderWidth: 1,
+    borderWidth: 1.5,
     borderColor: COLORS.primary,
-    borderStyle: 'dashed',
   },
-  socialIcon: {
-    fontSize: 18,
-    fontWeight: '700',
-    color: '#fff',
-    marginRight: 10,
+  icon: {
+    marginRight: 12,
     width: 24,
     textAlign: 'center',
   },
-  emailIcon: {
-    fontSize: 16,
-    marginRight: 10,
-    width: 24,
-    textAlign: 'center',
-  },
-  socialText: {
+  loginText: {
     fontFamily: FONTS.body,
     fontSize: 16,
     fontWeight: '600',
     color: '#fff',
-  },
-  guestText: {
-    fontFamily: FONTS.body,
-    fontSize: 16,
-    fontWeight: '600',
-    color: COLORS.primary,
   },
   guestNote: {
     fontFamily: FONTS.body,
@@ -220,11 +213,12 @@ const styles = StyleSheet.create({
     color: COLORS.textDim,
     textAlign: 'center',
     marginTop: -4,
+    marginBottom: 4,
   },
   divider: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginVertical: 4,
+    marginVertical: 8,
   },
   dividerLine: {
     flex: 1,
@@ -235,14 +229,13 @@ const styles = StyleSheet.create({
     fontFamily: FONTS.body,
     fontSize: 12,
     color: COLORS.textDim,
-    marginHorizontal: 12,
+    marginHorizontal: 16,
   },
   terms: {
     fontFamily: FONTS.body,
     fontSize: 11,
     color: COLORS.textDim,
     textAlign: 'center',
-    marginTop: 32,
-    lineHeight: 18,
+    marginTop: 24,
   },
 });

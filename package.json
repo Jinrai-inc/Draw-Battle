@@ -10,6 +10,8 @@
     "test": "jest"
   },
   "dependencies": {
+    "@expo/vector-icons": "^15.1.1",
+    "@react-native-async-storage/async-storage": "^3.0.1",
     "@supabase/supabase-js": "^2.99.3",
     "expo": "~54.0.0",
     "expo-av": "~15.0.2",

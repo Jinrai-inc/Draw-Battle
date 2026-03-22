@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { View, Text, StyleSheet, Alert, ActivityIndicator, TouchableOpacity } from 'react-native';
 import { useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { Ionicons } from '@expo/vector-icons';
 import { COLORS, FONTS } from '../../src/config/gameConfig';
 import { CyberInput } from '../../src/components/cyber/CyberInput';
 import { GlowText } from '../../src/components/cyber/GlowText';
@@ -81,10 +82,10 @@ export default function RegisterScreen() {
               <TouchableOpacity
                 style={styles.submitButton}
                 onPress={handleSubmit}
-                activeOpacity={0.7}
+                activeOpacity={0.8}
               >
                 <Text style={styles.submitText}>
-                  {isLogin ? 'ログイン' : '登録'}
+                  {isLogin ? 'ログイン' : '登録する'}
                 </Text>
               </TouchableOpacity>
 
@@ -94,7 +95,7 @@ export default function RegisterScreen() {
                 style={styles.switchButton}
               >
                 <Text style={styles.switchText}>
-                  {isLogin ? 'アカウントを作る' : 'ログインはこちら'}
+                  {isLogin ? 'アカウントを作成する' : 'ログインはこちら'}
                 </Text>
               </TouchableOpacity>
             </>
@@ -105,7 +106,8 @@ export default function RegisterScreen() {
             activeOpacity={0.7}
             style={styles.backButton}
           >
-            <Text style={styles.backText}>← 戻る</Text>
+            <Ionicons name="arrow-back" size={16} color={COLORS.textDim} />
+            <Text style={styles.backText}>戻る</Text>
           </TouchableOpacity>
         </View>
       </View>
@@ -141,7 +143,7 @@ const styles = StyleSheet.create({
   submitButton: {
     backgroundColor: COLORS.secondary,
     paddingVertical: 14,
-    borderRadius: 8,
+    borderRadius: 12,
     alignItems: 'center',
     marginTop: 4,
   },
@@ -162,8 +164,11 @@ const styles = StyleSheet.create({
     textDecorationLine: 'underline',
   },
   backButton: {
+    flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'center',
     paddingVertical: 8,
+    gap: 4,
   },
   backText: {
     fontFamily: FONTS.body,

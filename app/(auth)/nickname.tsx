@@ -75,7 +75,7 @@ export default function NicknameScreen() {
               style={[styles.startButton, nickname.trim().length < 3 && styles.startButtonDisabled]}
               onPress={handleStart}
               disabled={nickname.trim().length < 3}
-              activeOpacity={0.7}
+              activeOpacity={0.8}
             >
               <Text style={styles.startText}>はじめる</Text>
             </TouchableOpacity>
@@ -121,7 +121,7 @@ const styles = StyleSheet.create({
   startButton: {
     backgroundColor: COLORS.primary,
     paddingVertical: 14,
-    borderRadius: 8,
+    borderRadius: 12,
     alignItems: 'center',
     marginTop: 8,
   },
