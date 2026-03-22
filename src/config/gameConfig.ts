@@ -74,6 +74,44 @@ export const GAME_CONFIG = {
     { id: 'SSR', name: 'SSR', color: '#FFD700', minTotal: 380 },
     { id: 'UR', name: 'UR', color: '#FF69B4', minTotal: 450 },
   ],
+  equipment: {
+    dropChance: 0.35, // 35% chance to drop equipment after battle win
+    rarityWeights: {
+      normal: 0.65,
+      rare: 0.28,
+      epic: 0.07,
+    },
+    slots: ['weapon', 'armor', 'accessory'] as const,
+    slotLabels: {
+      weapon: { icon: '\u25B7', label: 'WEAPON', color: '#FF4444', statPool: ['atk', 'special'] as const },
+      armor: { icon: '\u25A1', label: 'ARMOR', color: '#4488FF', statPool: ['hp', 'def'] as const },
+      accessory: { icon: '\u25C7', label: 'ACCESSORY', color: '#FF00FF', statPool: ['spd', 'special'] as const },
+    },
+    bonusRange: {
+      normal: { min: 3, max: 8 },
+      rare: { min: 7, max: 15 },
+      epic: { min: 13, max: 25 },
+    },
+    rarityColors: {
+      normal: '#888888',
+      rare: '#00FFFF',
+      epic: '#FFD700',
+    },
+    namePool: {
+      weapon: {
+        prefix: ['サイバー', 'ネオン', '量子', 'プラズマ', '暗黒', '聖なる', '紅蓮の', '蒼穹の'],
+        base: ['ブレード', 'キャノン', 'ランス', 'アーム', 'エッジ', 'ロッド', 'ファング'],
+      },
+      armor: {
+        prefix: ['サイバー', 'ネオン', '量子', 'プラズマ', '暗黒', '聖なる', '紅蓮の', '蒼穹の'],
+        base: ['アーマー', 'シールド', 'プレート', 'コート', 'バリア', 'ガード', 'ヴェール'],
+      },
+      accessory: {
+        prefix: ['サイバー', 'ネオン', '量子', 'プラズマ', '暗黒', '聖なる', '紅蓮の', '蒼穹の'],
+        base: ['リング', 'アミュレット', 'チップ', 'コア', 'オーブ', 'クリスタル', 'サークレット'],
+      },
+    },
+  },
   growth: {
     expPerWin: 100,
     expPerLoss: 30,

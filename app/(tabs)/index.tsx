@@ -6,17 +6,20 @@ import { CyberButton, CyberCard, GlowText } from '../../src/components/cyber';
 import { ScanlineOverlay, GridBackground } from '../../src/components/cyber/ScanlineOverlay';
 import { useCollectionStore } from '../../src/stores/collectionStore';
 import { useAuthStore } from '../../src/stores/authStore';
+import { useEquipmentStore } from '../../src/stores/equipmentStore';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 export default function HomeScreen() {
   const router = useRouter();
   const { characters, loadCharacters } = useCollectionStore();
+  const { loadEquipment } = useEquipmentStore();
   const user = useAuthStore((s) => s.user);
 
-  // Load characters from DB on mount
+  // Load characters and equipment from DB on mount
   useEffect(() => {
     if (user?.id) {
       loadCharacters(user.id);
+      loadEquipment(user.id);
     }
   }, [user?.id]);
 

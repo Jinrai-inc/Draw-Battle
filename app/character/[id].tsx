@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, Text, StyleSheet, ScrollView, Alert } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, Alert, TouchableOpacity } from 'react-native';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { COLORS, FONTS, GAME_CONFIG } from '../../src/config/gameConfig';
@@ -10,12 +10,12 @@ import { ScanlineOverlay, GridBackground } from '../../src/components/cyber/Scan
 import { StatsCard } from '../../src/components/StatsCard';
 import { useCollectionStore } from '../../src/stores/collectionStore';
 import { useBattleStore } from '../../src/stores/battleStore';
+import { useEquipmentStore } from '../../src/stores/equipmentStore';
 import { calcSpecialPower } from '../../src/engine/specialPower';
+import { calcEquipmentBonuses } from '../../src/services/equipmentService';
 
-const EQUIPMENT_SLOT_LABELS: Record<string, { icon: string; label: string; color: string }> = {
-  weapon: { icon: '\u25B7', label: 'WEAPON', color: COLORS.danger },
-  armor: { icon: '\u25A1', label: 'ARMOR', color: '#4488FF' },
-  accessory: { icon: '\u25C7', label: 'ACCESSORY', color: COLORS.secondary },
+const STAT_LABELS: Record<string, string> = {
+  hp: 'HP', atk: 'ATK', def: 'DEF', spd: 'SPD', special: 'SPE',
 };
 
 export default function CharacterDetailScreen() {
@@ -23,6 +23,8 @@ export default function CharacterDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const { characters, selectCharacter } = useCollectionStore();
   const { setPlayerCharacter, setPhase } = useBattleStore();
+  const { items: allEquipment } = useEquipmentStore();
+  const cfg = GAME_CONFIG.equipment;
 
   const character = characters.find(c => c.id === id);
 
@@ -181,15 +183,37 @@ export default function CharacterDetailScreen() {
         {/* Equipment Slots */}
         <CyberCard style={styles.card} accentColor={COLORS.primary}>
           <Text style={styles.sectionTitle}>{'\u25B7'} EQUIPMENT</Text>
-          {Object.entries(EQUIPMENT_SLOT_LABELS).map(([slot, info]) => (
-            <View key={slot} style={styles.equipmentSlot}>
-              <View style={styles.equipSlotLeft}>
-                <Text style={[styles.equipSlotIcon, { color: info.color }]}>{info.icon}</Text>
-                <Text style={[styles.equipSlotLabel, { color: info.color }]}>{info.label}</Text>
-              </View>
-              <Text style={styles.equipSlotEmpty}>-- EMPTY --</Text>
-            </View>
-          ))}
+          {(cfg.slots as readonly string[]).map(slot => {
+            const slotDef = cfg.slotLabels[slot as keyof typeof cfg.slotLabels];
+            const eqId = slot === 'weapon' ? character.weaponId : slot === 'armor' ? character.armorId : character.accessoryId;
+            const equipped = eqId ? allEquipment.find(e => e.id === eqId) : undefined;
+            const rarityColor = equipped ? cfg.rarityColors[equipped.rarity] : undefined;
+
+            return (
+              <TouchableOpacity
+                key={slot}
+                style={styles.equipmentSlot}
+                onPress={() => router.push(`/character/equipment?id=${character.id}&slot=${slot}`)}
+                activeOpacity={0.7}
+              >
+                <View style={styles.equipSlotLeft}>
+                  <Text style={[styles.equipSlotIcon, { color: slotDef.color }]}>{slotDef.icon}</Text>
+                  <Text style={[styles.equipSlotLabel, { color: slotDef.color }]}>{slotDef.label}</Text>
+                </View>
+                {equipped ? (
+                  <View style={styles.equipSlotRight}>
+                    <Text style={[styles.equipSlotName, { color: rarityColor }]}>{equipped.name}</Text>
+                    <Text style={styles.equipSlotBonus}>
+                      {STAT_LABELS[equipped.bonusStat]} +{equipped.bonusValue}
+                    </Text>
+                  </View>
+                ) : (
+                  <Text style={styles.equipSlotEmpty}>-- EMPTY --</Text>
+                )}
+                <Text style={styles.equipSlotArrow}>{'\u25B7'}</Text>
+              </TouchableOpacity>
+            );
+          })}
         </CyberCard>
 
         {/* Info */}
@@ -409,6 +433,27 @@ const styles = StyleSheet.create({
     fontSize: 11,
     color: COLORS.textDim,
     letterSpacing: 1,
+  },
+  equipSlotRight: {
+    flex: 1,
+    alignItems: 'flex-end',
+  },
+  equipSlotName: {
+    fontFamily: FONTS.body,
+    fontSize: 13,
+    fontWeight: '700',
+  },
+  equipSlotBonus: {
+    fontFamily: FONTS.mono,
+    fontSize: 10,
+    color: COLORS.success,
+    marginTop: 1,
+  },
+  equipSlotArrow: {
+    fontFamily: FONTS.mono,
+    fontSize: 12,
+    color: COLORS.textDim,
+    marginLeft: 8,
   },
   infoGrid: {
     flexDirection: 'row',

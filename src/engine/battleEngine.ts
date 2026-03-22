@@ -1,17 +1,42 @@
 import { GAME_CONFIG } from '../config/gameConfig';
 import { calcSpecialPower } from './specialPower';
 import { rollStatusEffect, checkSkipTurn, applyStatusDamage, tickStatusEffects, addStatusEffect, getStatusModifiers } from './statusEffects';
-import type { Character, BattleTurnLog, BattleFighterState, BattleResult } from '../types';
+import type { Character, BattleTurnLog, BattleFighterState, BattleResult, Equipment, StatKey } from '../types';
 
 /**
- * Initialize a fighter state from a character.
+ * Apply equipment bonuses to a character's stats.
  */
-export function initFighter(character: Character): BattleFighterState {
-  const maxHp = character.stats.hp * GAME_CONFIG.battle.hpMultiplier;
-  const { multiplier } = calcSpecialPower(character.specialMoveName);
+function applyEquipmentBonuses(character: Character, equipment: Equipment[]): Character {
+  if (!equipment.length) return character;
+
+  const bonuses: Record<StatKey, number> = { hp: 0, atk: 0, def: 0, spd: 0, special: 0 };
+  for (const eq of equipment) {
+    bonuses[eq.bonusStat] += eq.bonusValue;
+  }
 
   return {
-    character,
+    ...character,
+    stats: {
+      hp: character.stats.hp + bonuses.hp,
+      atk: character.stats.atk + bonuses.atk,
+      def: character.stats.def + bonuses.def,
+      spd: character.stats.spd + bonuses.spd,
+      special: character.stats.special + bonuses.special,
+      totalStats: character.stats.totalStats + bonuses.hp + bonuses.atk + bonuses.def + bonuses.spd + bonuses.special,
+    },
+  };
+}
+
+/**
+ * Initialize a fighter state from a character, optionally with equipment bonuses.
+ */
+export function initFighter(character: Character, equipment: Equipment[] = []): BattleFighterState {
+  const boosted = applyEquipmentBonuses(character, equipment);
+  const maxHp = boosted.stats.hp * GAME_CONFIG.battle.hpMultiplier;
+  const { multiplier } = calcSpecialPower(boosted.specialMoveName);
+
+  return {
+    character: boosted,
     currentHp: maxHp,
     maxHp,
     statusEffects: [],
@@ -133,11 +158,13 @@ function executeAction(
 export function runBattle(
   char1: Character,
   char2: Character,
-  battleType: 'random' | 'friend' | 'ai' = 'ai'
+  battleType: 'random' | 'friend' | 'ai' = 'ai',
+  char1Equipment: Equipment[] = [],
+  char2Equipment: Equipment[] = [],
 ): { winnerId: string; turns: BattleTurnLog[] } {
   const fighters: [BattleFighterState, BattleFighterState] = [
-    initFighter(char1),
-    initFighter(char2),
+    initFighter(char1, char1Equipment),
+    initFighter(char2, char2Equipment),
   ];
 
   const turns: BattleTurnLog[] = [];

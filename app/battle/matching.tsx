@@ -21,6 +21,8 @@ import { runBattle } from '../../src/engine/battleEngine';
 import { joinMatchmaking, leaveMatchmaking, subscribeToMatchmaking } from '../../src/services/battleService';
 import { getFriends } from '../../src/services/friendService';
 import { playSE, SE } from '../../src/services/soundService';
+import { useEquipmentStore } from '../../src/stores/equipmentStore';
+import { generateEquipmentDrop } from '../../src/services/equipmentService';
 import type { Character, Friend } from '../../src/types';
 
 type MatchMode = 'ai' | 'random' | 'friend';
@@ -361,17 +363,34 @@ export default function MatchingScreen() {
 
     setEnemyCharacter(enemy);
 
+    // Get player's equipped items for battle stat bonuses
+    const { items: allEquipment } = useEquipmentStore.getState();
+    const playerEquipment = [
+      playerCharacter.weaponId,
+      playerCharacter.armorId,
+      playerCharacter.accessoryId,
+    ]
+      .filter(Boolean)
+      .map(eqId => allEquipment.find(e => e.id === eqId))
+      .filter((e): e is NonNullable<typeof e> => !!e);
+
     const battleType = mode === 'random' ? 'random' : mode === 'friend' ? 'friend' : 'ai';
-    const result = runBattle(playerCharacter, enemy, battleType);
-    const expGained = result.winnerId === playerCharacter.id
+    const result = runBattle(playerCharacter, enemy, battleType, playerEquipment);
+    const isWin = result.winnerId === playerCharacter.id;
+    const expGained = isWin
       ? GAME_CONFIG.growth.expPerWin
       : GAME_CONFIG.growth.expPerLoss;
+
+    // Generate equipment drop on victory
+    const equipmentDrop = isWin
+      ? generateEquipmentDrop(playerCharacter.userId)
+      : null;
 
     setBattleResult({
       battleId: `battle_${Date.now()}`,
       winnerId: result.winnerId,
       turns: result.turns,
-      rewards: { expGained },
+      rewards: { expGained, equipmentDrop },
     });
 
     setPhase('summon');

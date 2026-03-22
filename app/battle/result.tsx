@@ -7,9 +7,12 @@ import { CyberButton } from '../../src/components/cyber/CyberButton';
 import { CyberCard } from '../../src/components/cyber/CyberCard';
 import { ScanlineOverlay, GridBackground } from '../../src/components/cyber/ScanlineOverlay';
 import { useBattleStore } from '../../src/stores/battleStore';
+import { useEquipmentStore } from '../../src/stores/equipmentStore';
+import { useAuthStore } from '../../src/stores/authStore';
 import { playSE, playBGM, SE, BGM } from '../../src/services/soundService';
 import { ParticleEffect } from '../../src/components/cyber/ParticleEffect';
 import { useAdControl } from '../../src/hooks/useAdControl';
+import { createEquipment } from '../../src/services/equipmentService';
 
 export default function ResultScreen() {
   const router = useRouter();
@@ -22,8 +25,11 @@ export default function ResultScreen() {
     reset,
   } = useBattleStore();
 
+  const { addEquipment } = useEquipmentStore();
+  const { user } = useAuthStore();
   const { onBattleEnd, showExpBoostAd } = useAdControl();
   const [expMultiplied, setExpMultiplied] = React.useState(false);
+  const [dropSaved, setDropSaved] = React.useState(false);
 
   const titleScale = useRef(new Animated.Value(0)).current;
   const titleOpacity = useRef(new Animated.Value(0)).current;
@@ -37,6 +43,24 @@ export default function ResultScreen() {
     playBGM(isPlayerWinner ? BGM.RESULT_WIN : BGM.RESULT_LOSE);
     onBattleEnd();
   }, []);
+
+  // Save equipment drop to store and DB
+  useEffect(() => {
+    if (dropSaved || !battleResult?.rewards.equipmentDrop) return;
+    const drop = battleResult.rewards.equipmentDrop;
+    addEquipment(drop);
+    setDropSaved(true);
+    // Persist to DB in background
+    if (user?.id) {
+      createEquipment(user.id, {
+        name: drop.name,
+        slot: drop.slot,
+        rarity: drop.rarity,
+        bonusStat: drop.bonusStat,
+        bonusValue: drop.bonusValue,
+      }).catch(() => {});
+    }
+  }, [battleResult, dropSaved]);
 
   useEffect(() => {
     Animated.sequence([
@@ -101,6 +125,14 @@ export default function ResultScreen() {
 
   const baseExpGained = battleResult.rewards.expGained;
   const expGained = expMultiplied ? baseExpGained * 2 : baseExpGained;
+  const equipmentDrop = battleResult.rewards.equipmentDrop;
+
+  const eqRarityColors: Record<string, string> = {
+    normal: '#888888', rare: '#00FFFF', epic: '#FFD700',
+  };
+  const STAT_LABELS: Record<string, string> = {
+    hp: 'HP', atk: 'ATK', def: 'DEF', spd: 'SPD', special: 'SPE',
+  };
 
   const resultColor = isPlayerWinner ? COLORS.primary : COLORS.danger;
   const resultText = isPlayerWinner ? 'VICTORY' : 'DEFEATED';
@@ -207,6 +239,27 @@ export default function ResultScreen() {
               size="medium"
               style={styles.rewardButton}
             />
+          )}
+
+          {/* Equipment drop */}
+          {equipmentDrop && (
+            <CyberCard style={styles.card} accentColor={eqRarityColors[equipmentDrop.rarity] || COLORS.primary}>
+              <Text style={styles.sectionTitle}>{'\u25C7'} EQUIPMENT DROP!</Text>
+              <View style={styles.dropRow}>
+                <View style={styles.dropInfo}>
+                  <Text style={[styles.dropName, { color: eqRarityColors[equipmentDrop.rarity] }]}>
+                    {equipmentDrop.name}
+                  </Text>
+                  <Text style={styles.dropRarity}>
+                    {equipmentDrop.rarity.toUpperCase()} {equipmentDrop.slot.toUpperCase()}
+                  </Text>
+                </View>
+                <View style={styles.dropStatBadge}>
+                  <Text style={styles.dropStatLabel}>{STAT_LABELS[equipmentDrop.bonusStat]}</Text>
+                  <Text style={[styles.dropStatValue, { color: COLORS.success }]}>+{equipmentDrop.bonusValue}</Text>
+                </View>
+              </View>
+            </CyberCard>
           )}
 
           {/* Battle stats */}
@@ -483,5 +536,45 @@ const styles = StyleSheet.create({
   },
   rewardButton: {
     marginBottom: 16,
+  },
+  dropRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  dropInfo: {
+    flex: 1,
+  },
+  dropName: {
+    fontFamily: FONTS.body,
+    fontSize: 18,
+    fontWeight: '700',
+  },
+  dropRarity: {
+    fontFamily: FONTS.mono,
+    fontSize: 10,
+    color: COLORS.textDim,
+    letterSpacing: 2,
+    marginTop: 2,
+  },
+  dropStatBadge: {
+    alignItems: 'center',
+    backgroundColor: 'rgba(0, 255, 136, 0.1)',
+    borderWidth: 1,
+    borderColor: 'rgba(0, 255, 136, 0.2)',
+    borderRadius: 8,
+    paddingHorizontal: 14,
+    paddingVertical: 6,
+  },
+  dropStatLabel: {
+    fontFamily: FONTS.mono,
+    fontSize: 9,
+    color: COLORS.textDim,
+    letterSpacing: 1,
+  },
+  dropStatValue: {
+    fontFamily: FONTS.heading,
+    fontSize: 18,
+    fontWeight: '700',
   },
 });
