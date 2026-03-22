@@ -6,7 +6,7 @@ import { Ionicons, FontAwesome } from '@expo/vector-icons';
 import { COLORS, FONTS } from '../../src/config/gameConfig';
 import { GlowText } from '../../src/components/cyber/GlowText';
 import { ScanlineOverlay, GridBackground } from '../../src/components/cyber/ScanlineOverlay';
-import { signInWithGoogle, signInWithApple, signInAsGuest } from '../../src/services/authService';
+import { signInWithGoogle, signInWithApple, createGuestProfile } from '../../src/services/authService';
 import { useAuthStore, mapDbUser } from '../../src/stores/authStore';
 
 export default function LoginScreen() {
@@ -40,7 +40,7 @@ export default function LoginScreen() {
     setLoading('guest');
     try {
       const guestName = 'ゲスト' + Math.floor(Math.random() * 9000 + 1000);
-      const profile = await signInAsGuest(guestName);
+      const profile = createGuestProfile(guestName);
       setGuest(mapDbUser(profile));
       router.replace('/(tabs)');
     } catch (err: any) {

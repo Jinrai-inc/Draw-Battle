@@ -1,7 +1,7 @@
 import { create } from 'zustand';
 import type { User } from '../types';
 import { supabase } from '../services/supabase';
-import { getUserProfile, updateLastLogin, getGuestProfile, clearGuestProfile } from '../services/authService';
+import { getUserProfile, updateLastLogin } from '../services/authService';
 
 interface AuthState {
   user: User | null;
@@ -46,27 +46,10 @@ export const useAuthStore = create<AuthState>((set) => ({
   setLoading: (isLoading) => set({ isLoading }),
   setNeedsNickname: (needsNickname) => set({ needsNickname }),
   setGuest: (user) => set({ user, isAuthenticated: true, isGuest: true, isLoading: false, needsNickname: false }),
-  logout: async () => {
-    await clearGuestProfile();
-    set({ user: null, isAuthenticated: false, isGuest: false, needsNickname: false });
-  },
+  logout: () => set({ user: null, isAuthenticated: false, isGuest: false, needsNickname: false }),
 
   initialize: async () => {
     try {
-      // First check for guest profile
-      const guestProfile = await getGuestProfile();
-      if (guestProfile) {
-        set({
-          user: mapDbUser(guestProfile),
-          isAuthenticated: true,
-          isGuest: true,
-          needsNickname: false,
-          isLoading: false,
-        });
-        return;
-      }
-
-      // Then check Supabase session
       const { data: { session } } = await supabase.auth.getSession();
       if (!session?.user) {
         set({ user: null, isAuthenticated: false, isLoading: false });
@@ -87,20 +70,7 @@ export const useAuthStore = create<AuthState>((set) => ({
         isLoading: false,
       });
     } catch {
-      // If Supabase fails (no connection), check for guest profile as fallback
-      try {
-        const guestProfile = await getGuestProfile();
-        if (guestProfile) {
-          set({
-            user: mapDbUser(guestProfile),
-            isAuthenticated: true,
-            isGuest: true,
-            needsNickname: false,
-            isLoading: false,
-          });
-          return;
-        }
-      } catch {}
+      // Supabase not configured or network error - just show login screen
       set({ user: null, isAuthenticated: false, isLoading: false });
     }
   },
