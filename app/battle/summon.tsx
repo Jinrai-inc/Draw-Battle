@@ -513,6 +513,9 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     marginBottom: 16,
+    backgroundColor: 'rgba(255, 255, 255, 0.85)',
+    borderRadius: 8,
+    overflow: 'hidden',
   },
   characterImage: {
     width: 90,

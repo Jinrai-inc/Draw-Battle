@@ -8,10 +8,12 @@ import { ScanlineOverlay, GridBackground } from '../../src/components/cyber/Scan
 import { StatsCard } from '../../src/components/StatsCard';
 import { useCollectionStore } from '../../src/stores/collectionStore';
 import { useAuthStore } from '../../src/stores/authStore';
+import { useLanguageStore } from '../../src/stores/languageStore';
 
 export default function NamingScreen() {
   const router = useRouter();
   const user = useAuthStore((s) => s.user);
+  const { t } = useLanguageStore();
   const { draftCharacter, draftImageBase64, clearDraft, saveCharacter, addCharacter } = useCollectionStore();
 
   const [specialName, setSpecialName] = useState('');
@@ -93,10 +95,10 @@ export default function NamingScreen() {
           {/* Header */}
           <View style={styles.header}>
             <GlowText size={22} color={COLORS.secondary}>
-              {'\u25C7'} SPECIAL MOVE {'\u25C7'}
+              {t('special_move_header')}
             </GlowText>
             <Text style={styles.subtitle}>
-              Name your character's ultimate attack
+              {t('special_move_subtitle')}
             </Text>
           </View>
 
@@ -111,7 +113,7 @@ export default function NamingScreen() {
 
           {/* Special move name input */}
           <View style={styles.inputSection}>
-            <Text style={styles.inputLabel}>{'\u25B7'} MOVE NAME</Text>
+            <Text style={styles.inputLabel}>{t('special_move_input_label')}</Text>
             <Animated.View style={[styles.inputWrapper, { opacity: inputGlow }]}>
               <View style={styles.inputBorderGlow} />
             </Animated.View>
@@ -119,7 +121,7 @@ export default function NamingScreen() {
               style={styles.textInput}
               value={specialName}
               onChangeText={setSpecialName}
-              placeholder="Enter special move name..."
+              placeholder={t('special_move_placeholder')}
               placeholderTextColor="rgba(0, 255, 255, 0.2)"
               maxLength={30}
               autoFocus
@@ -132,15 +134,15 @@ export default function NamingScreen() {
           {/* Mystery rank hint */}
           <View style={styles.mysterySection}>
             <Text style={styles.mysteryIcon}>{'\u2753'}</Text>
-            <Text style={styles.mysteryTitle}>{'\u25C8'} RANK: ???</Text>
+            <Text style={styles.mysteryTitle}>{t('special_move_rank_mystery')}</Text>
             <Text style={styles.mysteryDesc}>
-              The power of your special move will be revealed when battle begins!
+              {t('special_move_rank_reveal')}
             </Text>
             <View style={styles.tipsContainer}>
               <Text style={styles.tipsTitle}>{'\u00BB'} TIPS</Text>
-              <Text style={styles.tipText}>{'\u25C7'} Power kanji boost score significantly</Text>
-              <Text style={styles.tipText}>{'\u25C7'} Short, dense names rank higher</Text>
-              <Text style={styles.tipText}>{'\u25C7'} Filler characters reduce power</Text>
+              <Text style={styles.tipText}>{t('special_move_tip_kanji')}</Text>
+              <Text style={styles.tipText}>{t('special_move_tip_short')}</Text>
+              <Text style={styles.tipText}>{t('special_move_tip_filler')}</Text>
             </View>
           </View>
 

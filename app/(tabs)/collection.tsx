@@ -464,13 +464,13 @@ const styles = StyleSheet.create({
   previewArea: {
     width: '100%',
     height: 80,
-    backgroundColor: 'rgba(255,255,255,0.05)',
+    backgroundColor: 'rgba(255,255,255,0.85)',
     borderRadius: 4,
     alignItems: 'center',
     justifyContent: 'center',
     marginBottom: 8,
     borderWidth: 1,
-    borderColor: 'rgba(0,255,255,0.08)',
+    borderColor: 'rgba(0,255,255,0.15)',
   },
   previewIcon: {
     fontSize: 32,

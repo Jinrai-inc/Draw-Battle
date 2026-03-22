@@ -94,6 +94,19 @@ const translations = {
   mission_battle_desc: { ja: 'バトルを1回する', en: 'Play 1 battle', zh: '进行1场对战', ko: '배틀 1회 하기', es: 'Jugar 1 batalla' },
   mission_fusion: { ja: '合成', en: 'Fusion', zh: '合成', ko: '합성', es: 'Fusión' },
   mission_fusion_desc: { ja: '合成を1回する', en: 'Fuse 1 time', zh: '合成1次', ko: '합성 1회 하기', es: 'Fusionar 1 vez' },
+
+  // ===== Special Move =====
+  special_move_header: { ja: '\u25C7 必殺技 \u25C7', en: '\u25C7 SPECIAL MOVE \u25C7', zh: '\u25C7 必杀技 \u25C7', ko: '\u25C7 필살기 \u25C7', es: '\u25C7 MOVIMIENTO ESPECIAL \u25C7' },
+  special_move_subtitle: { ja: 'キャラクターの必殺技に名前をつけよう', en: "Name your character's ultimate attack", zh: '为角色的必杀技命名', ko: '캐릭터의 필살기에 이름을 지어주세요', es: 'Pon nombre al ataque definitivo' },
+  special_move_input_label: { ja: '\u25B7 必殺技名', en: '\u25B7 MOVE NAME', zh: '\u25B7 必杀技名', ko: '\u25B7 필살기명', es: '\u25B7 NOMBRE DEL MOVIMIENTO' },
+  special_move_placeholder: { ja: '必殺技の名前を入力...', en: 'Enter special move name...', zh: '输入必杀技名称...', ko: '필살기 이름을 입력...', es: 'Nombre del movimiento...' },
+  special_move_rank_mystery: { ja: '\u25C8 ランク: ???', en: '\u25C8 RANK: ???', zh: '\u25C8 等级: ???', ko: '\u25C8 랭크: ???', es: '\u25C8 RANGO: ???' },
+  special_move_rank_reveal: { ja: 'バトル開始時に必殺技の威力が明らかに！', en: 'The power of your special move will be revealed when battle begins!', zh: '战斗开始时必杀技威力将会揭晓！', ko: '배틀이 시작되면 필살기의 위력이 밝혀집니다!', es: '¡El poder del movimiento se revelará al iniciar la batalla!' },
+  special_move_tip_kanji: { ja: '\u25C7 パワー漢字でスコア大幅UP', en: '\u25C7 Power kanji boost score significantly', zh: '\u25C7 力量汉字大幅提升分数', ko: '\u25C7 파워 한자로 점수 대폭 UP', es: '\u25C7 Los kanji de poder aumentan mucho el puntaje' },
+  special_move_tip_short: { ja: '\u25C7 短く濃い名前ほどランクUP', en: '\u25C7 Short, dense names rank higher', zh: '\u25C7 简短有力的名字等级更高', ko: '\u25C7 짧고 강한 이름일수록 랭크 UP', es: '\u25C7 Nombres cortos y densos ranquean más alto' },
+  special_move_tip_filler: { ja: '\u25C7 余分な文字はパワーDOWN', en: '\u25C7 Filler characters reduce power', zh: '\u25C7 多余字符会降低威力', ko: '\u25C7 불필요한 문자는 파워 DOWN', es: '\u25C7 Caracteres de relleno reducen el poder' },
+  special_move_section: { ja: '\u25C7 必殺技', en: '\u25C7 SPECIAL MOVE', zh: '\u25C7 必杀技', ko: '\u25C7 필살기', es: '\u25C7 MOVIMIENTO ESPECIAL' },
+  special_move_battle_cutin: { ja: '\u25C7 必殺技 \u25C7', en: '\u25C7 SPECIAL MOVE \u25C7', zh: '\u25C7 必杀技 \u25C7', ko: '\u25C7 필살기 \u25C7', es: '\u25C7 MOVIMIENTO ESPECIAL \u25C7' },
 } as const;
 
 export type TranslationKey = keyof typeof translations;

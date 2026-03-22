@@ -7,6 +7,7 @@ import { ScanlineOverlay, GridBackground } from '../../src/components/cyber/Scan
 import { useBattleStore } from '../../src/stores/battleStore';
 import { playSE, SE } from '../../src/services/soundService';
 import { CharacterSprite } from '../../src/components/CharacterSprite';
+import { useLanguageStore } from '../../src/stores/languageStore';
 import type { BattleTurnLog } from '../../src/types';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
@@ -21,6 +22,7 @@ export default function FightScreen() {
     battleResult,
     setPhase,
   } = useBattleStore();
+  const { t } = useLanguageStore();
 
   const [currentTurnIdx, setCurrentTurnIdx] = useState(-1);
   const [playerHp, setPlayerHp] = useState(0);
@@ -473,7 +475,7 @@ export default function FightScreen() {
             ]}
           >
             <View style={styles.specialNameBg}>
-              <Text style={styles.specialNameLabel}>{'\u25C7'} SPECIAL MOVE {'\u25C7'}</Text>
+              <Text style={styles.specialNameLabel}>{t('special_move_battle_cutin')}</Text>
               <GlowText size={28} color={COLORS.secondary}>
                 {specialCutInName}
               </GlowText>
@@ -593,7 +595,8 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    backgroundColor: 'rgba(255, 255, 255, 0.85)',
+    overflow: 'hidden',
   },
   imageWrapper: {
     width: '100%',

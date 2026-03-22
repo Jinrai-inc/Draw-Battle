@@ -328,10 +328,11 @@ const styles = StyleSheet.create({
     height: 44,
     borderRadius: 4,
     borderWidth: 1,
-    backgroundColor: 'rgba(255,255,255,0.05)',
+    backgroundColor: 'rgba(255,255,255,0.85)',
     alignItems: 'center',
     justifyContent: 'center',
     marginBottom: 4,
+    overflow: 'hidden',
   },
   pickerIconText: {
     fontSize: 20,

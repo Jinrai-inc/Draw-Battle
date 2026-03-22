@@ -203,8 +203,8 @@ const styles = StyleSheet.create({
   },
   placeholder: {
     borderRadius: 8,
-    backgroundColor: 'rgba(0,255,255,0.05)',
+    backgroundColor: 'rgba(255,255,255,0.85)',
     borderWidth: 1,
-    borderColor: 'rgba(0,255,255,0.1)',
+    borderColor: 'rgba(0,255,255,0.15)',
   },
 });

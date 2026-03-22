@@ -17,6 +17,7 @@ import { calcSpecialPower } from '../../src/engine/specialPower';
 import { calcEquipmentBonuses } from '../../src/services/equipmentService';
 import * as likeService from '../../src/services/likeService';
 import { playSE, SE } from '../../src/services/soundService';
+import { useLanguageStore } from '../../src/stores/languageStore';
 
 const STAT_LABELS: Record<string, string> = {
   hp: 'HP', atk: 'ATK', def: 'DEF', spd: 'SPD', special: 'SPE',
@@ -29,6 +30,7 @@ export default function CharacterDetailScreen() {
   const { setPlayerCharacter, setPhase } = useBattleStore();
   const { items: allEquipment } = useEquipmentStore();
   const user = useAuthStore(s => s.user);
+  const { t } = useLanguageStore();
   const cfg = GAME_CONFIG.equipment;
 
   const character = characters.find(c => c.id === id);
@@ -211,7 +213,7 @@ export default function CharacterDetailScreen() {
 
         {/* Special Move Detail */}
         <CyberCard style={styles.card} accentColor={COLORS.secondary}>
-          <Text style={styles.sectionTitle}>{'\u25C7'} SPECIAL MOVE</Text>
+          <Text style={styles.sectionTitle}>{t('special_move_section')}</Text>
           <Text style={styles.specialName}>{character.specialMoveName}</Text>
           <View style={styles.specialStats}>
             <View style={styles.specialStatItem}>
@@ -349,9 +351,10 @@ const styles = StyleSheet.create({
     height: 120,
     borderRadius: 12,
     borderWidth: 2,
-    backgroundColor: 'rgba(0,0,0,0.5)',
+    backgroundColor: 'rgba(255,255,255,0.85)',
     alignItems: 'center',
     justifyContent: 'center',
+    overflow: 'hidden',
   },
   previewIcon: {
     fontSize: 48,
