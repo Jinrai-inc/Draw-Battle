@@ -12,6 +12,7 @@ import { useRouter } from 'expo-router';
 import { COLORS, FONTS, GAME_CONFIG } from '../../src/config/gameConfig';
 import { CyberCard, GlowText } from '../../src/components/cyber';
 import { ScanlineOverlay, GridBackground } from '../../src/components/cyber/ScanlineOverlay';
+import { CharacterSprite } from '../../src/components/CharacterSprite';
 import { useCollectionStore } from '../../src/stores/collectionStore';
 import type { Character, RarityId, ElementId } from '../../src/types';
 
@@ -230,9 +231,18 @@ export default function CollectionScreen() {
 
                   {/* Character preview area */}
                   <View style={[styles.previewArea, char.isEvolved && { borderColor: rarityColor }]}>
-                    <Text style={[styles.previewIcon, { color: elementInfo?.color || COLORS.textDim }]}>
-                      {'\u25C8'}
-                    </Text>
+                    {char.imageBase64 ? (
+                      <CharacterSprite
+                        imageBase64={char.imageBase64}
+                        size={70}
+                        animate={false}
+                        glowColor={elementInfo?.color || COLORS.primary}
+                      />
+                    ) : (
+                      <Text style={[styles.previewIcon, { color: elementInfo?.color || COLORS.textDim }]}>
+                        {'\u25C8'}
+                      </Text>
+                    )}
                   </View>
 
                   {/* Character name */}

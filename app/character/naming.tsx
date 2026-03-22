@@ -47,6 +47,7 @@ export default function NamingScreen() {
     const finalCharacter = {
       ...draftCharacter,
       specialMoveName: specialName.trim(),
+      imageBase64: draftImageBase64 || undefined,
     };
 
     // If user is logged in, save to DB
@@ -55,7 +56,7 @@ export default function NamingScreen() {
       try {
         const saved = await saveCharacter(user.id, draftImageBase64, finalCharacter);
         if (!saved) {
-          // DB save failed, keep locally
+          // DB save failed, keep locally with base64 image
           addCharacter(finalCharacter);
         }
       } catch {

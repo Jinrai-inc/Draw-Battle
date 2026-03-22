@@ -48,6 +48,8 @@ export interface Character {
   id: string;
   userId: string;
   imageUrl: string;
+  /** base64-encoded RGBA pixel data (64x64) for local/offline display */
+  imageBase64?: string;
   name?: string;
   specialMoveName: string;
   stats: CharacterStats;

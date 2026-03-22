@@ -1,5 +1,5 @@
 import React, { useEffect, useRef } from 'react';
-import { View, Text, Image, StyleSheet, Animated, Easing, Dimensions } from 'react-native';
+import { View, Text, StyleSheet, Animated, Easing, Dimensions } from 'react-native';
 import { useRouter } from 'expo-router';
 import { COLORS, FONTS, GAME_CONFIG } from '../../src/config/gameConfig';
 import { GlowText } from '../../src/components/cyber/GlowText';
@@ -7,6 +7,7 @@ import { ScanlineOverlay, GridBackground } from '../../src/components/cyber/Scan
 import { useBattleStore } from '../../src/stores/battleStore';
 import { playSE, playBGM, SE, BGM } from '../../src/services/soundService';
 import { ParticleEffect } from '../../src/components/cyber/ParticleEffect';
+import { CharacterSprite } from '../../src/components/CharacterSprite';
 import { calcSpecialPower } from '../../src/engine/specialPower';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
@@ -297,16 +298,12 @@ export default function SummonScreen() {
 
           {/* Character display */}
           <View style={styles.characterArea}>
-            {playerCharacter.imageUrl ? (
-              <Image
-                source={{ uri: playerCharacter.imageUrl }}
-                style={styles.characterImage}
-              />
-            ) : (
-              <View style={[styles.characterPlaceholder, { borderColor: playerColor }]}>
-                <Text style={[styles.placeholderIcon, { color: playerColor }]}>{'\u25C8'}</Text>
-              </View>
-            )}
+            <CharacterSprite
+              imageBase64={playerCharacter.imageBase64}
+              size={90}
+              animate={true}
+              glowColor={playerColor}
+            />
           </View>
 
           {/* Character info */}
@@ -393,16 +390,12 @@ export default function SummonScreen() {
 
           {/* Character display */}
           <View style={styles.characterArea}>
-            {enemyCharacter.imageUrl ? (
-              <Image
-                source={{ uri: enemyCharacter.imageUrl }}
-                style={styles.characterImage}
-              />
-            ) : (
-              <View style={[styles.characterPlaceholder, { borderColor: enemyColor }]}>
-                <Text style={[styles.placeholderIcon, { color: enemyColor }]}>{'\u25C8'}</Text>
-              </View>
-            )}
+            <CharacterSprite
+              imageBase64={enemyCharacter.imageBase64}
+              size={90}
+              animate={true}
+              glowColor={enemyColor}
+            />
           </View>
 
           {/* Character info */}

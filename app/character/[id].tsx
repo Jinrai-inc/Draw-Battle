@@ -121,7 +121,7 @@ export default function CharacterDetailScreen() {
             character.isEvolved && { shadowColor: rarityDef?.color, shadowOpacity: 0.8, shadowRadius: 16, elevation: 8 },
           ]}>
             <CharacterSprite
-              imageBase64={character.imageUrl || draftImageBase64 || undefined}
+              imageBase64={character.imageBase64 || draftImageBase64 || undefined}
               size={100}
               animate={true}
               glowColor={elementDef?.color || COLORS.primary}

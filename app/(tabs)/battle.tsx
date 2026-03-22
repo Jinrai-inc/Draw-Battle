@@ -8,6 +8,7 @@ import { ScanlineOverlay, GridBackground } from '../../src/components/cyber/Scan
 import { useBattleStore } from '../../src/stores/battleStore';
 import { useCollectionStore } from '../../src/stores/collectionStore';
 import { useNetworkStatus } from '../../src/hooks/useNetworkStatus';
+import { CharacterSprite } from '../../src/components/CharacterSprite';
 import type { Character } from '../../src/types';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
@@ -98,9 +99,18 @@ export default function BattleScreen() {
                     activeOpacity={0.7}
                   >
                     <View style={[styles.pickerIcon, { borderColor: elInfo?.color || COLORS.textDim }]}>
-                      <Text style={[styles.pickerIconText, { color: elInfo?.color || COLORS.textDim }]}>
-                        {'\u25C8'}
-                      </Text>
+                      {char.imageBase64 ? (
+                        <CharacterSprite
+                          imageBase64={char.imageBase64}
+                          size={40}
+                          animate={false}
+                          glowColor={elInfo?.color || COLORS.primary}
+                        />
+                      ) : (
+                        <Text style={[styles.pickerIconText, { color: elInfo?.color || COLORS.textDim }]}>
+                          {'\u25C8'}
+                        </Text>
+                      )}
                     </View>
                     <Text style={styles.pickerName} numberOfLines={1}>
                       {char.name || 'No Name'}

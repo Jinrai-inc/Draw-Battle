@@ -6,6 +6,7 @@ import { GlowText } from '../../src/components/cyber/GlowText';
 import { ScanlineOverlay, GridBackground } from '../../src/components/cyber/ScanlineOverlay';
 import { useBattleStore } from '../../src/stores/battleStore';
 import { playSE, SE } from '../../src/services/soundService';
+import { CharacterSprite } from '../../src/components/CharacterSprite';
 import type { BattleTurnLog } from '../../src/types';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
@@ -382,10 +383,13 @@ export default function FightScreen() {
         {/* Player character */}
         <View style={styles.characterDisplay}>
           <View style={[styles.characterFrame, { borderColor: COLORS.primary }]}>
-            {playerCharacter.imageUrl ? (
-              <View style={styles.imageWrapper}>
-                <Text style={[styles.charIcon, { color: COLORS.primary }]}>{'\u25C8'}</Text>
-              </View>
+            {playerCharacter.imageBase64 ? (
+              <CharacterSprite
+                imageBase64={playerCharacter.imageBase64}
+                size={80}
+                animate={true}
+                glowColor={COLORS.primary}
+              />
             ) : (
               <Text style={[styles.charIcon, { color: COLORS.primary }]}>{'\u25C8'}</Text>
             )}
@@ -414,10 +418,13 @@ export default function FightScreen() {
         {/* Enemy character */}
         <View style={styles.characterDisplay}>
           <View style={[styles.characterFrame, { borderColor: COLORS.danger }]}>
-            {enemyCharacter.imageUrl ? (
-              <View style={styles.imageWrapper}>
-                <Text style={[styles.charIcon, { color: COLORS.danger }]}>{'\u25C8'}</Text>
-              </View>
+            {enemyCharacter.imageBase64 ? (
+              <CharacterSprite
+                imageBase64={enemyCharacter.imageBase64}
+                size={80}
+                animate={true}
+                glowColor={COLORS.danger}
+              />
             ) : (
               <Text style={[styles.charIcon, { color: COLORS.danger }]}>{'\u25C8'}</Text>
             )}
