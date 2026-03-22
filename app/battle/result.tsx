@@ -7,6 +7,9 @@ import { CyberButton } from '../../src/components/cyber/CyberButton';
 import { CyberCard } from '../../src/components/cyber/CyberCard';
 import { ScanlineOverlay, GridBackground } from '../../src/components/cyber/ScanlineOverlay';
 import { useBattleStore } from '../../src/stores/battleStore';
+import { playSE, playBGM, SE, BGM } from '../../src/services/soundService';
+import { ParticleEffect } from '../../src/components/cyber/ParticleEffect';
+import { useAdControl } from '../../src/hooks/useAdControl';
 
 export default function ResultScreen() {
   const router = useRouter();
@@ -19,11 +22,21 @@ export default function ResultScreen() {
     reset,
   } = useBattleStore();
 
+  const { onBattleEnd, showExpBoostAd } = useAdControl();
+  const [expMultiplied, setExpMultiplied] = React.useState(false);
+
   const titleScale = useRef(new Animated.Value(0)).current;
   const titleOpacity = useRef(new Animated.Value(0)).current;
   const contentOpacity = useRef(new Animated.Value(0)).current;
   const flashOpacity = useRef(new Animated.Value(1)).current;
   const expBarWidth = useRef(new Animated.Value(0)).current;
+
+  // Play result SE/BGM and notify ad system
+  useEffect(() => {
+    playSE(isPlayerWinner ? SE.VICTORY : SE.DEFEAT);
+    playBGM(isPlayerWinner ? BGM.RESULT_WIN : BGM.RESULT_LOSE);
+    onBattleEnd();
+  }, []);
 
   useEffect(() => {
     Animated.sequence([
@@ -86,7 +99,8 @@ export default function ResultScreen() {
     t => t.attacker === 'player1' && t.isCritical
   ).length;
 
-  const expGained = battleResult.rewards.expGained;
+  const baseExpGained = battleResult.rewards.expGained;
+  const expGained = expMultiplied ? baseExpGained * 2 : baseExpGained;
 
   const resultColor = isPlayerWinner ? COLORS.primary : COLORS.danger;
   const resultText = isPlayerWinner ? 'VICTORY' : 'DEFEATED';
@@ -172,6 +186,22 @@ export default function ResultScreen() {
               />
             </View>
           </CyberCard>
+
+          {/* EXP 2x reward ad button */}
+          {!expMultiplied && (
+            <CyberButton
+              title={'\u25B6 WATCH AD FOR 2x EXP'}
+              onPress={() => {
+                showExpBoostAd(() => {
+                  setExpMultiplied(true);
+                  playSE(SE.LEVELUP);
+                });
+              }}
+              color={COLORS.warning}
+              size="medium"
+              style={styles.rewardButton}
+            />
+          )}
 
           {/* Battle stats */}
           <CyberCard style={styles.card} accentColor={COLORS.primary}>
@@ -280,6 +310,17 @@ export default function ResultScreen() {
           </View>
         </Animated.View>
       </ScrollView>
+
+      {/* Victory particles */}
+      {isPlayerWinner && (
+        <ParticleEffect
+          color={COLORS.primary}
+          count={30}
+          duration={2000}
+          spread={300}
+          active={true}
+        />
+      )}
 
       <ScanlineOverlay />
     </View>
@@ -433,5 +474,8 @@ const styles = StyleSheet.create({
   },
   button: {
     flex: 1,
+  },
+  rewardButton: {
+    marginBottom: 16,
   },
 });

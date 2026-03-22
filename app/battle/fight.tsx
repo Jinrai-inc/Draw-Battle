@@ -5,6 +5,7 @@ import { COLORS, FONTS, GAME_CONFIG } from '../../src/config/gameConfig';
 import { GlowText } from '../../src/components/cyber/GlowText';
 import { ScanlineOverlay, GridBackground } from '../../src/components/cyber/ScanlineOverlay';
 import { useBattleStore } from '../../src/stores/battleStore';
+import { playSE, SE } from '../../src/services/soundService';
 import type { BattleTurnLog } from '../../src/types';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
@@ -69,6 +70,7 @@ export default function FightScreen() {
 
     // Handle status damage
     if (turn.statusDamage && turn.statusDamage > 0) {
+      playSE(SE.STATUS_TICK);
       setActionText(`${attackerName} takes ${turn.statusDamage} status damage!`);
       if (isPlayerAttacking) {
         // Status damage to the attacker themselves
@@ -100,6 +102,7 @@ export default function FightScreen() {
 
     // Special move cut-in
     if (turn.isSpecial && turn.specialName) {
+      playSE(SE.SPECIAL_CUTIN);
       setShowSpecialCutIn(true);
       setSpecialCutInName(turn.specialName);
 
@@ -147,6 +150,7 @@ export default function FightScreen() {
 
     // Damage display
     if (turn.damage > 0) {
+      playSE(turn.isCritical ? SE.CRITICAL : turn.isSpecial ? SE.SPECIAL_HIT : SE.ATTACK);
       setDamageIsPlayer(!isPlayerAttacking);
       setDamageText(`-${turn.damage}`);
       setShowDamage(true);
@@ -224,6 +228,11 @@ export default function FightScreen() {
 
     // Status effects
     if (turn.statusApplied) {
+      const statusSE: Record<string, string> = {
+        poison: SE.STATUS_POISON, sleep: SE.STATUS_SLEEP,
+        paralyze: SE.STATUS_PARALYZE, burn: SE.STATUS_BURN, freeze: SE.STATUS_FREEZE,
+      };
+      playSE(statusSE[turn.statusApplied.id] || SE.STATUS_TICK);
       const statusCfg = GAME_CONFIG.statusEffects[turn.statusApplied.id as keyof typeof GAME_CONFIG.statusEffects];
       if (statusCfg) {
         if (isPlayerAttacking) {

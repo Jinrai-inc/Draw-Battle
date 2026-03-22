@@ -5,12 +5,16 @@ import { COLORS, FONTS, GAME_CONFIG } from '../../src/config/gameConfig';
 import { GlowText } from '../../src/components/cyber/GlowText';
 import { ScanlineOverlay, GridBackground } from '../../src/components/cyber/ScanlineOverlay';
 import { useBattleStore } from '../../src/stores/battleStore';
+import { playSE, playBGM, SE, BGM } from '../../src/services/soundService';
+import { ParticleEffect } from '../../src/components/cyber/ParticleEffect';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
 export default function SummonScreen() {
   const router = useRouter();
   const { playerCharacter, enemyCharacter, setPhase } = useBattleStore();
+
+  const [showParticles, setShowParticles] = React.useState(false);
 
   const circleRotate = useRef(new Animated.Value(0)).current;
   const pillarPlayerAnim = useRef(new Animated.Value(0)).current;
@@ -36,6 +40,20 @@ export default function SummonScreen() {
     spin.start();
     return () => spin.stop();
   }, [circleRotate]);
+
+  // Sound effects
+  useEffect(() => {
+    playBGM(BGM.BATTLE);
+    playSE(SE.SUMMON_CIRCLE);
+
+    const vsTimeout = setTimeout(() => playSE(SE.VS), 1100);
+    const startTimeout = setTimeout(() => playSE(SE.BATTLE_START), 2200);
+
+    return () => {
+      clearTimeout(vsTimeout);
+      clearTimeout(startTimeout);
+    };
+  }, []);
 
   // Sequenced entrance animations
   useEffect(() => {
@@ -117,6 +135,10 @@ export default function SummonScreen() {
     ]);
 
     sequence.start();
+
+    // Trigger particles at VS impact time (~1.1s)
+    const particleTimeout = setTimeout(() => setShowParticles(true), 1100);
+    return () => clearTimeout(particleTimeout);
   }, []);
 
   // Auto-advance after animation completes
@@ -323,6 +345,15 @@ export default function SummonScreen() {
           {'\u25B7'} BATTLE START! {'\u25C1'}
         </GlowText>
       </Animated.View>
+
+      {/* VS particle burst */}
+      <ParticleEffect
+        color={COLORS.warning}
+        count={24}
+        duration={1200}
+        spread={250}
+        active={showParticles}
+      />
 
       <ScanlineOverlay />
     </View>
