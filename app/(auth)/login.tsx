@@ -1,37 +1,46 @@
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, Alert, ActivityIndicator } from 'react-native';
+import { View, Text, StyleSheet, Alert, ActivityIndicator, TouchableOpacity } from 'react-native';
 import { useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { COLORS, FONTS } from '../../src/config/gameConfig';
-import { CyberButton } from '../../src/components/cyber/CyberButton';
 import { GlowText } from '../../src/components/cyber/GlowText';
 import { ScanlineOverlay, GridBackground } from '../../src/components/cyber/ScanlineOverlay';
-import { signInWithGoogle, signInWithApple } from '../../src/services/authService';
+import { signInWithGoogle, signInWithApple, signInAsGuest } from '../../src/services/authService';
 
 export default function LoginScreen() {
   const router = useRouter();
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState<string | null>(null);
 
   const handleGoogleSignIn = async () => {
-    setLoading(true);
+    setLoading('google');
     try {
       await signInWithGoogle();
-      // OAuth redirect will handle the rest
     } catch (err: any) {
-      Alert.alert('Error', err.message || 'Google sign in failed');
+      Alert.alert('エラー', err.message || 'Googleログインに失敗しました');
     } finally {
-      setLoading(false);
+      setLoading(null);
     }
   };
 
   const handleAppleSignIn = async () => {
-    setLoading(true);
+    setLoading('apple');
     try {
       await signInWithApple();
     } catch (err: any) {
-      Alert.alert('Error', err.message || 'Apple sign in failed');
+      Alert.alert('エラー', err.message || 'Appleログインに失敗しました');
     } finally {
-      setLoading(false);
+      setLoading(null);
+    }
+  };
+
+  const handleGuestSignIn = async () => {
+    setLoading('guest');
+    try {
+      await signInAsGuest();
+    } catch (err: any) {
+      Alert.alert('エラー', err.message || 'ゲストログインに失敗しました');
+    } finally {
+      setLoading(null);
     }
   };
 
@@ -41,38 +50,84 @@ export default function LoginScreen() {
       <ScanlineOverlay />
 
       <View style={styles.content}>
-        <GlowText size={32} color={COLORS.primary}>DRAW BATTLE</GlowText>
-        <Text style={styles.subtitle}>-- CYBER ARENA --</Text>
+        <View style={styles.header}>
+          <GlowText size={32} color={COLORS.primary}>DRAW BATTLE</GlowText>
+          <Text style={styles.subtitle}>-- CYBER ARENA --</Text>
+        </View>
 
-        {loading ? (
-          <ActivityIndicator size="large" color={COLORS.primary} style={{ marginTop: 40 }} />
-        ) : (
-          <View style={styles.buttons}>
-            <CyberButton
-              title="Google\u3067\u59CB\u3081\u308B"
-              onPress={handleGoogleSignIn}
-              size="large"
-              style={styles.button}
-            />
-            <CyberButton
-              title="Apple\u3067\u59CB\u3081\u308B"
-              onPress={handleAppleSignIn}
-              color={COLORS.text}
-              size="large"
-              style={styles.button}
-            />
-            <CyberButton
-              title="\u30E1\u30FC\u30EB\u3067\u767B\u9332"
-              onPress={() => router.push('/(auth)/register')}
-              color={COLORS.secondary}
-              size="large"
-              style={styles.button}
-            />
+        <View style={styles.buttons}>
+          {/* Google ログイン */}
+          <TouchableOpacity
+            style={[styles.socialButton, styles.googleButton]}
+            onPress={handleGoogleSignIn}
+            disabled={loading !== null}
+            activeOpacity={0.7}
+          >
+            {loading === 'google' ? (
+              <ActivityIndicator size="small" color="#fff" />
+            ) : (
+              <>
+                <Text style={styles.socialIcon}>G</Text>
+                <Text style={styles.socialText}>Googleでログイン</Text>
+              </>
+            )}
+          </TouchableOpacity>
+
+          {/* Apple ログイン */}
+          <TouchableOpacity
+            style={[styles.socialButton, styles.appleButton]}
+            onPress={handleAppleSignIn}
+            disabled={loading !== null}
+            activeOpacity={0.7}
+          >
+            {loading === 'apple' ? (
+              <ActivityIndicator size="small" color="#fff" />
+            ) : (
+              <>
+                <Text style={styles.socialIcon}>{'\uF8FF'}</Text>
+                <Text style={styles.socialText}>Appleでログイン</Text>
+              </>
+            )}
+          </TouchableOpacity>
+
+          {/* メールで登録 */}
+          <TouchableOpacity
+            style={[styles.socialButton, styles.emailButton]}
+            onPress={() => router.push('/(auth)/register')}
+            disabled={loading !== null}
+            activeOpacity={0.7}
+          >
+            <Text style={styles.emailIcon}>✉</Text>
+            <Text style={styles.socialText}>メールで登録 / ログイン</Text>
+          </TouchableOpacity>
+
+          {/* 区切り線 */}
+          <View style={styles.divider}>
+            <View style={styles.dividerLine} />
+            <Text style={styles.dividerText}>または</Text>
+            <View style={styles.dividerLine} />
           </View>
-        )}
+
+          {/* ゲストログイン */}
+          <TouchableOpacity
+            style={[styles.socialButton, styles.guestButton]}
+            onPress={handleGuestSignIn}
+            disabled={loading !== null}
+            activeOpacity={0.7}
+          >
+            {loading === 'guest' ? (
+              <ActivityIndicator size="small" color={COLORS.primary} />
+            ) : (
+              <Text style={styles.guestText}>ゲストではじめる</Text>
+            )}
+          </TouchableOpacity>
+          <Text style={styles.guestNote}>
+            ※ゲストデータは端末に保存されます
+          </Text>
+        </View>
 
         <Text style={styles.terms}>
-          {'\u767B\u9332\u306B\u3088\u308A\u5229\u7528\u898F\u7D04\u306B\n\u540C\u610F\u3057\u305F\u3082\u306E\u3068\u307F\u306A\u3057\u307E\u3059'}
+          {'登録により利用規約に\n同意したものとみなします'}
         </Text>
       </View>
     </SafeAreaView>
@@ -91,21 +146,96 @@ const styles = StyleSheet.create({
     padding: 20,
     zIndex: 10,
   },
+  header: {
+    alignItems: 'center',
+    marginBottom: 48,
+  },
   subtitle: {
     fontFamily: FONTS.heading,
     fontSize: 12,
     color: COLORS.textDim,
     letterSpacing: 3,
     marginTop: 4,
-    marginBottom: 48,
   },
   buttons: {
     width: '100%',
     maxWidth: 320,
-    gap: 14,
+    gap: 12,
   },
-  button: {
-    width: '100%',
+  socialButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 14,
+    paddingHorizontal: 20,
+    borderRadius: 8,
+    minHeight: 52,
+  },
+  googleButton: {
+    backgroundColor: '#4285F4',
+  },
+  appleButton: {
+    backgroundColor: '#333',
+  },
+  emailButton: {
+    backgroundColor: 'transparent',
+    borderWidth: 1,
+    borderColor: COLORS.secondary,
+  },
+  guestButton: {
+    backgroundColor: 'transparent',
+    borderWidth: 1,
+    borderColor: COLORS.primary,
+    borderStyle: 'dashed',
+  },
+  socialIcon: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: '#fff',
+    marginRight: 10,
+    width: 24,
+    textAlign: 'center',
+  },
+  emailIcon: {
+    fontSize: 16,
+    marginRight: 10,
+    width: 24,
+    textAlign: 'center',
+  },
+  socialText: {
+    fontFamily: FONTS.body,
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#fff',
+  },
+  guestText: {
+    fontFamily: FONTS.body,
+    fontSize: 16,
+    fontWeight: '600',
+    color: COLORS.primary,
+  },
+  guestNote: {
+    fontFamily: FONTS.body,
+    fontSize: 11,
+    color: COLORS.textDim,
+    textAlign: 'center',
+    marginTop: -4,
+  },
+  divider: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginVertical: 4,
+  },
+  dividerLine: {
+    flex: 1,
+    height: 1,
+    backgroundColor: 'rgba(255,255,255,0.15)',
+  },
+  dividerText: {
+    fontFamily: FONTS.body,
+    fontSize: 12,
+    color: COLORS.textDim,
+    marginHorizontal: 12,
   },
   terms: {
     fontFamily: FONTS.body,

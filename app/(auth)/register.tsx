@@ -1,9 +1,8 @@
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, Alert, ActivityIndicator } from 'react-native';
+import { View, Text, StyleSheet, Alert, ActivityIndicator, TouchableOpacity } from 'react-native';
 import { useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { COLORS, FONTS } from '../../src/config/gameConfig';
-import { CyberButton } from '../../src/components/cyber/CyberButton';
 import { CyberInput } from '../../src/components/cyber/CyberInput';
 import { GlowText } from '../../src/components/cyber/GlowText';
 import { ScanlineOverlay, GridBackground } from '../../src/components/cyber/ScanlineOverlay';
@@ -18,11 +17,11 @@ export default function RegisterScreen() {
 
   const handleSubmit = async () => {
     if (!email.trim() || !password.trim()) {
-      Alert.alert('', '\u30E1\u30FC\u30EB\u3068\u30D1\u30B9\u30EF\u30FC\u30C9\u3092\u5165\u529B\u3057\u3066\u304F\u3060\u3055\u3044');
+      Alert.alert('', 'メールとパスワードを入力してください');
       return;
     }
     if (password.length < 6) {
-      Alert.alert('', '\u30D1\u30B9\u30EF\u30FC\u30C9\u306F6\u6587\u5B57\u4EE5\u4E0A\u3067\u5165\u529B\u3057\u3066\u304F\u3060\u3055\u3044');
+      Alert.alert('', 'パスワードは6文字以上で入力してください');
       return;
     }
 
@@ -33,13 +32,12 @@ export default function RegisterScreen() {
       } else {
         await signUpWithEmail({ email, password });
       }
-      // Auth state listener in _layout will handle navigation
     } catch (err: any) {
       const message = err.message?.includes('Invalid login')
-        ? '\u30E1\u30FC\u30EB\u307E\u305F\u306F\u30D1\u30B9\u30EF\u30FC\u30C9\u304C\u6B63\u3057\u304F\u3042\u308A\u307E\u305B\u3093'
+        ? 'メールまたはパスワードが正しくありません'
         : err.message?.includes('already registered')
-        ? '\u3053\u306E\u30E1\u30FC\u30EB\u306F\u65E2\u306B\u767B\u9332\u3055\u308C\u3066\u3044\u307E\u3059'
-        : err.message || '\u30A8\u30E9\u30FC\u304C\u767A\u751F\u3057\u307E\u3057\u305F';
+        ? 'このメールは既に登録されています'
+        : err.message || 'エラーが発生しました';
       Alert.alert('', message);
     } finally {
       setLoading(false);
@@ -53,14 +51,14 @@ export default function RegisterScreen() {
 
       <View style={styles.content}>
         <GlowText size={24} color={COLORS.secondary}>
-          {isLogin ? '\u30ED\u30B0\u30A4\u30F3' : '\u30E1\u30FC\u30EB\u3067\u767B\u9332'}
+          {isLogin ? 'ログイン' : 'メールで登録'}
         </GlowText>
         <Text style={styles.subtitle}>-- CYBER ARENA --</Text>
 
         <View style={styles.form}>
           <CyberInput
             label="EMAIL"
-            placeholder="\u30E1\u30FC\u30EB\u30A2\u30C9\u30EC\u30B9..."
+            placeholder="メールアドレス..."
             value={email}
             onChangeText={setEmail}
             keyboardType="email-address"
@@ -69,7 +67,7 @@ export default function RegisterScreen() {
           />
           <CyberInput
             label="PASSWORD"
-            placeholder="\u30D1\u30B9\u30EF\u30FC\u30C9\uFF086\u6587\u5B57\u4EE5\u4E0A\uFF09..."
+            placeholder="パスワード（6文字以上）..."
             value={password}
             onChangeText={setPassword}
             secureTextEntry
@@ -80,30 +78,35 @@ export default function RegisterScreen() {
             <ActivityIndicator size="large" color={COLORS.secondary} style={{ marginTop: 16 }} />
           ) : (
             <>
-              <CyberButton
-                title={isLogin ? '\u30ED\u30B0\u30A4\u30F3' : '\u767B\u9332'}
+              <TouchableOpacity
+                style={styles.submitButton}
                 onPress={handleSubmit}
-                color={COLORS.secondary}
-                size="large"
-                style={styles.button}
-              />
-              <CyberButton
-                title={isLogin ? '\u30A2\u30AB\u30A6\u30F3\u30C8\u3092\u4F5C\u308B' : '\u30ED\u30B0\u30A4\u30F3\u306F\u3053\u3061\u3089'}
+                activeOpacity={0.7}
+              >
+                <Text style={styles.submitText}>
+                  {isLogin ? 'ログイン' : '登録'}
+                </Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
                 onPress={() => setIsLogin(!isLogin)}
-                color={COLORS.textDim}
-                size="small"
-                style={styles.button}
-              />
+                activeOpacity={0.7}
+                style={styles.switchButton}
+              >
+                <Text style={styles.switchText}>
+                  {isLogin ? 'アカウントを作る' : 'ログインはこちら'}
+                </Text>
+              </TouchableOpacity>
             </>
           )}
 
-          <CyberButton
-            title="\u623B\u308B"
+          <TouchableOpacity
             onPress={() => router.back()}
-            color={COLORS.textDim}
-            size="small"
-            style={styles.button}
-          />
+            activeOpacity={0.7}
+            style={styles.backButton}
+          >
+            <Text style={styles.backText}>← 戻る</Text>
+          </TouchableOpacity>
         </View>
       </View>
     </SafeAreaView>
@@ -135,8 +138,36 @@ const styles = StyleSheet.create({
     maxWidth: 360,
     gap: 16,
   },
-  button: {
-    width: '100%',
+  submitButton: {
+    backgroundColor: COLORS.secondary,
+    paddingVertical: 14,
+    borderRadius: 8,
+    alignItems: 'center',
     marginTop: 4,
+  },
+  submitText: {
+    fontFamily: FONTS.body,
+    fontSize: 16,
+    fontWeight: '700',
+    color: '#fff',
+  },
+  switchButton: {
+    alignItems: 'center',
+    paddingVertical: 8,
+  },
+  switchText: {
+    fontFamily: FONTS.body,
+    fontSize: 14,
+    color: COLORS.textDim,
+    textDecorationLine: 'underline',
+  },
+  backButton: {
+    alignItems: 'center',
+    paddingVertical: 8,
+  },
+  backText: {
+    fontFamily: FONTS.body,
+    fontSize: 14,
+    color: COLORS.textDim,
   },
 });

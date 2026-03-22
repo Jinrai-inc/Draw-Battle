@@ -1,9 +1,8 @@
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, Alert, ActivityIndicator } from 'react-native';
+import { View, Text, StyleSheet, Alert, ActivityIndicator, TouchableOpacity } from 'react-native';
 import { useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { COLORS, FONTS } from '../../src/config/gameConfig';
-import { CyberButton } from '../../src/components/cyber/CyberButton';
 import { CyberInput } from '../../src/components/cyber/CyberInput';
 import { GlowText } from '../../src/components/cyber/GlowText';
 import { ScanlineOverlay, GridBackground } from '../../src/components/cyber/ScanlineOverlay';
@@ -20,7 +19,7 @@ export default function NicknameScreen() {
   const handleStart = async () => {
     const trimmed = nickname.trim();
     if (trimmed.length < 3 || trimmed.length > 12) {
-      Alert.alert('', '\u30CB\u30C3\u30AF\u30CD\u30FC\u30E0\u306F3\uFF5E12\u6587\u5B57\u3067\u5165\u529B\u3057\u3066\u304F\u3060\u3055\u3044');
+      Alert.alert('', 'ニックネームは3〜12文字で入力してください');
       return;
     }
 
@@ -37,7 +36,7 @@ export default function NicknameScreen() {
       setUser(mapDbUser(profile));
       router.replace('/(tabs)');
     } catch (err: any) {
-      Alert.alert('', err.message || '\u30A8\u30E9\u30FC\u304C\u767A\u751F\u3057\u307E\u3057\u305F');
+      Alert.alert('', err.message || 'エラーが発生しました');
     } finally {
       setLoading(false);
     }
@@ -50,15 +49,15 @@ export default function NicknameScreen() {
 
       <View style={styles.content}>
         <GlowText size={22} color={COLORS.primary}>
-          {'\u30CB\u30C3\u30AF\u30CD\u30FC\u30E0\u3092\u6C7A\u3081\u3088\u3046'}
+          ニックネームを決めよう
         </GlowText>
         <Text style={styles.hint}>
-          {'\u30E9\u30F3\u30AD\u30F3\u30B0\u3084\u30D5\u30EC\u30F3\u30C9\u306B\u8868\u793A\u3055\u308C\u307E\u3059\n3\uFF5E12\u6587\u5B57'}
+          {'ランキングやフレンドに表示されます\n3〜12文字'}
         </Text>
 
         <View style={styles.form}>
           <CyberInput
-            placeholder="\u30CB\u30C3\u30AF\u30CD\u30FC\u30E0..."
+            placeholder="ニックネーム..."
             value={nickname}
             onChangeText={setNickname}
             maxLength={12}
@@ -72,13 +71,14 @@ export default function NicknameScreen() {
           {loading ? (
             <ActivityIndicator size="large" color={COLORS.primary} style={{ marginTop: 16 }} />
           ) : (
-            <CyberButton
-              title="START"
+            <TouchableOpacity
+              style={[styles.startButton, nickname.trim().length < 3 && styles.startButtonDisabled]}
               onPress={handleStart}
-              size="large"
               disabled={nickname.trim().length < 3}
-              style={styles.button}
-            />
+              activeOpacity={0.7}
+            >
+              <Text style={styles.startText}>はじめる</Text>
+            </TouchableOpacity>
           )}
         </View>
       </View>
@@ -118,8 +118,20 @@ const styles = StyleSheet.create({
     color: COLORS.textDim,
     textAlign: 'right',
   },
-  button: {
-    width: '100%',
+  startButton: {
+    backgroundColor: COLORS.primary,
+    paddingVertical: 14,
+    borderRadius: 8,
+    alignItems: 'center',
     marginTop: 8,
+  },
+  startButtonDisabled: {
+    opacity: 0.4,
+  },
+  startText: {
+    fontFamily: FONTS.body,
+    fontSize: 18,
+    fontWeight: '700',
+    color: COLORS.background,
   },
 });

@@ -52,6 +52,13 @@ export async function signInWithApple() {
   return data;
 }
 
+// Sign in as guest (anonymous)
+export async function signInAsGuest() {
+  const { data, error } = await supabase.auth.signInAnonymously();
+  if (error) throw error;
+  return data;
+}
+
 // Sign out
 export async function signOut() {
   const { error } = await supabase.auth.signOut();
