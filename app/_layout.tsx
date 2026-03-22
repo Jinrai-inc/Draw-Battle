@@ -16,7 +16,7 @@ SplashScreen.preventAutoHideAsync().catch(() => {});
 export default function RootLayout() {
   const router = useRouter();
   const segments = useSegments();
-  const { isAuthenticated, isLoading, needsNickname, initialize, setUser, logout } = useAuthStore();
+  const { isAuthenticated, isLoading, isGuest, needsNickname, initialize, setUser, logout } = useAuthStore();
 
   const [fontsLoaded] = useFonts({
     'Orbitron': require('../assets/fonts/Orbitron-Regular.ttf'),
@@ -41,7 +41,11 @@ export default function RootLayout() {
         // Re-initialize to check profile
         initialize();
       } else {
-        logout();
+        // Don't logout guest users when Supabase has no session
+        const { isGuest } = useAuthStore.getState();
+        if (!isGuest) {
+          logout();
+        }
       }
     });
 
