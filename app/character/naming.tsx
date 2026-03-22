@@ -1,24 +1,13 @@
 import React, { useState, useCallback, useRef, useEffect } from 'react';
 import { View, Text, TextInput, StyleSheet, Animated, Easing, ScrollView, KeyboardAvoidingView, Platform, Alert, ActivityIndicator } from 'react-native';
 import { useRouter } from 'expo-router';
-import { COLORS, FONTS, GAME_CONFIG } from '../../src/config/gameConfig';
+import { COLORS, FONTS } from '../../src/config/gameConfig';
 import { GlowText } from '../../src/components/cyber/GlowText';
 import { CyberButton } from '../../src/components/cyber/CyberButton';
 import { ScanlineOverlay, GridBackground } from '../../src/components/cyber/ScanlineOverlay';
 import { StatsCard } from '../../src/components/StatsCard';
 import { useCollectionStore } from '../../src/stores/collectionStore';
 import { useAuthStore } from '../../src/stores/authStore';
-import { calcSpecialPower } from '../../src/engine/specialPower';
-
-const RANK_COLORS: Record<string, string> = {
-  SSS: '#FF69B4',
-  SS: '#FFD700',
-  S: '#FF4444',
-  A: '#AA44FF',
-  B: '#00FFFF',
-  C: '#00FF88',
-  D: '#888888',
-};
 
 export default function NamingScreen() {
   const router = useRouter();
@@ -26,35 +15,9 @@ export default function NamingScreen() {
   const { draftCharacter, draftImageBase64, clearDraft, saveCharacter, addCharacter } = useCollectionStore();
 
   const [specialName, setSpecialName] = useState('');
-  const [powerResult, setPowerResult] = useState(calcSpecialPower(''));
   const [saving, setSaving] = useState(false);
 
-  const pulseAnim = useRef(new Animated.Value(1)).current;
-  const rankScale = useRef(new Animated.Value(1)).current;
-  const barAnim = useRef(new Animated.Value(0)).current;
   const inputGlow = useRef(new Animated.Value(0.3)).current;
-
-  // Pulse animation for the power display
-  useEffect(() => {
-    const pulse = Animated.loop(
-      Animated.sequence([
-        Animated.timing(pulseAnim, {
-          toValue: 1.05,
-          duration: 1000,
-          easing: Easing.inOut(Easing.ease),
-          useNativeDriver: true,
-        }),
-        Animated.timing(pulseAnim, {
-          toValue: 1,
-          duration: 1000,
-          easing: Easing.inOut(Easing.ease),
-          useNativeDriver: true,
-        }),
-      ])
-    );
-    pulse.start();
-    return () => pulse.stop();
-  }, [pulseAnim]);
 
   // Input glow animation
   useEffect(() => {
@@ -77,36 +40,6 @@ export default function NamingScreen() {
     glow.start();
     return () => glow.stop();
   }, [inputGlow]);
-
-  const handleNameChange = useCallback((text: string) => {
-    setSpecialName(text);
-    const result = calcSpecialPower(text);
-    setPowerResult(result);
-
-    // Animate rank change
-    Animated.sequence([
-      Animated.timing(rankScale, {
-        toValue: 1.3,
-        duration: 100,
-        useNativeDriver: true,
-      }),
-      Animated.spring(rankScale, {
-        toValue: 1,
-        friction: 4,
-        tension: 120,
-        useNativeDriver: true,
-      }),
-    ]).start();
-
-    // Animate bar
-    const barTarget = result.multiplier / GAME_CONFIG.specialName.maxMultiplier;
-    Animated.timing(barAnim, {
-      toValue: barTarget,
-      duration: 300,
-      easing: Easing.out(Easing.ease),
-      useNativeDriver: false,
-    }).start();
-  }, []);
 
   const handleConfirm = useCallback(async () => {
     if (!draftCharacter || !specialName.trim()) return;
@@ -141,14 +74,6 @@ export default function NamingScreen() {
   }, [draftCharacter, draftImageBase64, specialName, user, saveCharacter, addCharacter, clearDraft, router]);
 
   if (!draftCharacter) return null;
-
-  const rankColor = RANK_COLORS[powerResult.rank] || COLORS.text;
-  const multiplierPercent = ((powerResult.multiplier - 1) * 100).toFixed(0);
-
-  const barWidth = barAnim.interpolate({
-    inputRange: [0, 1],
-    outputRange: ['0%', '100%'],
-  });
 
   return (
     <View style={styles.container}>
@@ -192,7 +117,7 @@ export default function NamingScreen() {
             <TextInput
               style={styles.textInput}
               value={specialName}
-              onChangeText={handleNameChange}
+              onChangeText={setSpecialName}
               placeholder="Enter special move name..."
               placeholderTextColor="rgba(0, 255, 255, 0.2)"
               maxLength={30}
@@ -203,74 +128,13 @@ export default function NamingScreen() {
             </Text>
           </View>
 
-          {/* Power calculation display */}
-          <View style={styles.powerSection}>
-            <View style={styles.powerHeader}>
-              <Text style={styles.powerTitle}>{'\u25C8'} POWER ANALYSIS</Text>
-            </View>
-
-            {/* Rank display */}
-            <Animated.View
-              style={[
-                styles.rankDisplay,
-                { transform: [{ scale: rankScale }] },
-              ]}
-            >
-              <Text style={styles.rankLabel}>RANK</Text>
-              <GlowText size={48} color={rankColor}>
-                {powerResult.rank}
-              </GlowText>
-            </Animated.View>
-
-            {/* Multiplier */}
-            <Animated.View
-              style={[
-                styles.multiplierRow,
-                { transform: [{ scale: pulseAnim }] },
-              ]}
-            >
-              <Text style={styles.multiplierLabel}>MULTIPLIER</Text>
-              <Text style={[styles.multiplierValue, { color: rankColor }]}>
-                x{powerResult.multiplier.toFixed(2)}
-              </Text>
-              <Text style={[styles.multiplierPercent, { color: rankColor }]}>
-                (+{multiplierPercent}%)
-              </Text>
-            </Animated.View>
-
-            {/* Power bar */}
-            <View style={styles.powerBarContainer}>
-              <View style={styles.powerBarTrack}>
-                <Animated.View
-                  style={[
-                    styles.powerBarFill,
-                    {
-                      width: barWidth,
-                      backgroundColor: rankColor,
-                    },
-                  ]}
-                />
-              </View>
-              <View style={styles.powerBarLabels}>
-                <Text style={styles.powerBarLabel}>D</Text>
-                <Text style={styles.powerBarLabel}>C</Text>
-                <Text style={styles.powerBarLabel}>B</Text>
-                <Text style={styles.powerBarLabel}>A</Text>
-                <Text style={styles.powerBarLabel}>S</Text>
-                <Text style={styles.powerBarLabel}>SS</Text>
-                <Text style={styles.powerBarLabel}>SSS</Text>
-              </View>
-            </View>
-
-            {/* Score details */}
-            <View style={styles.scoreRow}>
-              <Text style={styles.scoreLabel}>{'\u25A1'} Total Score</Text>
-              <Text style={[styles.scoreValue, { color: rankColor }]}>
-                {powerResult.totalScore}
-              </Text>
-            </View>
-
-            {/* Tips */}
+          {/* Mystery rank hint */}
+          <View style={styles.mysterySection}>
+            <Text style={styles.mysteryIcon}>{'\u2753'}</Text>
+            <Text style={styles.mysteryTitle}>{'\u25C8'} RANK: ???</Text>
+            <Text style={styles.mysteryDesc}>
+              The power of your special move will be revealed when battle begins!
+            </Text>
             <View style={styles.tipsContainer}>
               <Text style={styles.tipsTitle}>{'\u00BB'} TIPS</Text>
               <Text style={styles.tipText}>{'\u25C7'} Power kanji boost score significantly</Text>
@@ -375,108 +239,39 @@ const styles = StyleSheet.create({
     marginTop: 4,
     letterSpacing: 1,
   },
-  powerSection: {
+  mysterySection: {
     backgroundColor: 'rgba(10, 22, 40, 0.6)',
     borderWidth: 1,
-    borderColor: 'rgba(0, 255, 255, 0.1)',
+    borderColor: 'rgba(255, 215, 0, 0.2)',
     borderRadius: 4,
-    padding: 16,
+    padding: 20,
     marginBottom: 20,
-  },
-  powerHeader: {
-    marginBottom: 12,
-  },
-  powerTitle: {
-    fontFamily: FONTS.heading,
-    fontSize: 14,
-    color: COLORS.textDim,
-    letterSpacing: 2,
-  },
-  rankDisplay: {
     alignItems: 'center',
-    marginBottom: 16,
   },
-  rankLabel: {
-    fontFamily: FONTS.mono,
-    fontSize: 10,
-    color: COLORS.textDim,
+  mysteryIcon: {
+    fontSize: 36,
+    marginBottom: 8,
+  },
+  mysteryTitle: {
+    fontFamily: FONTS.heading,
+    fontSize: 20,
+    color: COLORS.warning,
     letterSpacing: 3,
-    marginBottom: 4,
+    marginBottom: 8,
   },
-  multiplierRow: {
-    flexDirection: 'row',
-    justifyContent: 'center',
-    alignItems: 'baseline',
-    gap: 8,
-    marginBottom: 16,
-  },
-  multiplierLabel: {
-    fontFamily: FONTS.mono,
-    fontSize: 10,
-    color: COLORS.textDim,
-    letterSpacing: 2,
-  },
-  multiplierValue: {
-    fontFamily: FONTS.heading,
-    fontSize: 24,
-    fontWeight: '700',
-    letterSpacing: 2,
-  },
-  multiplierPercent: {
-    fontFamily: FONTS.mono,
-    fontSize: 14,
-    opacity: 0.7,
-    letterSpacing: 1,
-  },
-  powerBarContainer: {
-    marginBottom: 16,
-  },
-  powerBarTrack: {
-    height: 8,
-    backgroundColor: 'rgba(255, 255, 255, 0.08)',
-    borderRadius: 4,
-    overflow: 'hidden',
-  },
-  powerBarFill: {
-    height: '100%',
-    borderRadius: 4,
-  },
-  powerBarLabels: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    marginTop: 4,
-  },
-  powerBarLabel: {
-    fontFamily: FONTS.mono,
-    fontSize: 8,
-    color: COLORS.textDim,
-    letterSpacing: 1,
-  },
-  scoreRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingVertical: 8,
-    borderTopWidth: 1,
-    borderTopColor: 'rgba(0, 255, 255, 0.1)',
-    marginBottom: 12,
-  },
-  scoreLabel: {
+  mysteryDesc: {
     fontFamily: FONTS.body,
-    fontSize: 14,
-    color: COLORS.text,
+    fontSize: 13,
+    color: COLORS.textDim,
+    textAlign: 'center',
     letterSpacing: 1,
-  },
-  scoreValue: {
-    fontFamily: FONTS.mono,
-    fontSize: 18,
-    fontWeight: '700',
-    letterSpacing: 1,
+    marginBottom: 16,
   },
   tipsContainer: {
-    paddingTop: 8,
+    paddingTop: 12,
     borderTopWidth: 1,
-    borderTopColor: 'rgba(0, 255, 255, 0.05)',
+    borderTopColor: 'rgba(255, 215, 0, 0.1)',
+    alignSelf: 'stretch',
   },
   tipsTitle: {
     fontFamily: FONTS.heading,

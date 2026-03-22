@@ -7,8 +7,19 @@ import { ScanlineOverlay, GridBackground } from '../../src/components/cyber/Scan
 import { useBattleStore } from '../../src/stores/battleStore';
 import { playSE, playBGM, SE, BGM } from '../../src/services/soundService';
 import { ParticleEffect } from '../../src/components/cyber/ParticleEffect';
+import { calcSpecialPower } from '../../src/engine/specialPower';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
+
+const RANK_COLORS: Record<string, string> = {
+  SSS: '#FF69B4',
+  SS: '#FFD700',
+  S: '#FF4444',
+  A: '#AA44FF',
+  B: '#00FFFF',
+  C: '#00FF88',
+  D: '#888888',
+};
 
 export default function SummonScreen() {
   const router = useRouter();
@@ -26,6 +37,18 @@ export default function SummonScreen() {
   const flashOpacity = useRef(new Animated.Value(0)).current;
   const playerSlide = useRef(new Animated.Value(-SCREEN_WIDTH)).current;
   const enemySlide = useRef(new Animated.Value(SCREEN_WIDTH)).current;
+
+  // Rank reveal animations
+  const rankRevealOpacity = useRef(new Animated.Value(0)).current;
+  const rankRevealScale = useRef(new Animated.Value(0.3)).current;
+  const playerRankScale = useRef(new Animated.Value(0)).current;
+  const enemyRankScale = useRef(new Animated.Value(0)).current;
+
+  // Calculate ranks
+  const playerPower = playerCharacter ? calcSpecialPower(playerCharacter.specialMoveName) : null;
+  const enemyPower = enemyCharacter ? calcSpecialPower(enemyCharacter.specialMoveName) : null;
+  const playerRankColor = playerPower ? (RANK_COLORS[playerPower.rank] || COLORS.text) : COLORS.text;
+  const enemyRankColor = enemyPower ? (RANK_COLORS[enemyPower.rank] || COLORS.text) : COLORS.text;
 
   // Magic circle rotation
   useEffect(() => {
@@ -47,10 +70,12 @@ export default function SummonScreen() {
     playSE(SE.SUMMON_CIRCLE);
 
     const vsTimeout = setTimeout(() => playSE(SE.VS), 1100);
-    const startTimeout = setTimeout(() => playSE(SE.BATTLE_START), 2200);
+    const rankTimeout = setTimeout(() => playSE(SE.STAT_REVEAL), 2000);
+    const startTimeout = setTimeout(() => playSE(SE.BATTLE_START), 3500);
 
     return () => {
       clearTimeout(vsTimeout);
+      clearTimeout(rankTimeout);
       clearTimeout(startTimeout);
     };
   }, []);
@@ -116,7 +141,54 @@ export default function SummonScreen() {
           }),
         ]),
       ]),
-      // Wait a moment
+      // Wait a moment, then reveal ranks
+      Animated.delay(400),
+      // Rank reveal
+      Animated.parallel([
+        Animated.timing(rankRevealOpacity, {
+          toValue: 1,
+          duration: 200,
+          useNativeDriver: true,
+        }),
+        Animated.spring(rankRevealScale, {
+          toValue: 1,
+          friction: 4,
+          tension: 100,
+          useNativeDriver: true,
+        }),
+        // Player rank pop
+        Animated.sequence([
+          Animated.spring(playerRankScale, {
+            toValue: 1.3,
+            friction: 3,
+            tension: 120,
+            useNativeDriver: true,
+          }),
+          Animated.spring(playerRankScale, {
+            toValue: 1,
+            friction: 5,
+            tension: 80,
+            useNativeDriver: true,
+          }),
+        ]),
+        // Enemy rank pop (slightly delayed)
+        Animated.sequence([
+          Animated.delay(200),
+          Animated.spring(enemyRankScale, {
+            toValue: 1.3,
+            friction: 3,
+            tension: 120,
+            useNativeDriver: true,
+          }),
+          Animated.spring(enemyRankScale, {
+            toValue: 1,
+            friction: 5,
+            tension: 80,
+            useNativeDriver: true,
+          }),
+        ]),
+      ]),
+      // Wait then BATTLE START
       Animated.delay(600),
       // BATTLE START text
       Animated.parallel([
@@ -141,12 +213,12 @@ export default function SummonScreen() {
     return () => clearTimeout(particleTimeout);
   }, []);
 
-  // Auto-advance after animation completes
+  // Auto-advance after animation completes (extended for rank reveal)
   useEffect(() => {
     const timeout = setTimeout(() => {
       setPhase('fighting');
       router.replace('/battle/fight');
-    }, 3500);
+    }, 5000);
     return () => clearTimeout(timeout);
   }, []);
 
@@ -251,6 +323,26 @@ export default function SummonScreen() {
               </Text>
             </View>
             <Text style={styles.levelText}>LV.{playerCharacter.level}</Text>
+
+            {/* Player rank reveal */}
+            {playerPower && (
+              <Animated.View style={[
+                styles.rankReveal,
+                {
+                  opacity: rankRevealOpacity,
+                  transform: [{ scale: playerRankScale }],
+                  borderColor: playerRankColor,
+                },
+              ]}>
+                <Text style={styles.rankRevealLabel}>SPECIAL</Text>
+                <Text style={[styles.rankRevealRank, { color: playerRankColor }]}>
+                  {playerPower.rank}
+                </Text>
+                <Text style={[styles.rankRevealMultiplier, { color: playerRankColor }]}>
+                  x{playerPower.multiplier.toFixed(1)}
+                </Text>
+              </Animated.View>
+            )}
           </View>
         </Animated.View>
 
@@ -327,6 +419,26 @@ export default function SummonScreen() {
               </Text>
             </View>
             <Text style={styles.levelText}>LV.{enemyCharacter.level}</Text>
+
+            {/* Enemy rank reveal */}
+            {enemyPower && (
+              <Animated.View style={[
+                styles.rankReveal,
+                {
+                  opacity: rankRevealOpacity,
+                  transform: [{ scale: enemyRankScale }],
+                  borderColor: enemyRankColor,
+                },
+              ]}>
+                <Text style={styles.rankRevealLabel}>SPECIAL</Text>
+                <Text style={[styles.rankRevealRank, { color: enemyRankColor }]}>
+                  {enemyPower.rank}
+                </Text>
+                <Text style={[styles.rankRevealMultiplier, { color: enemyRankColor }]}>
+                  x{enemyPower.multiplier.toFixed(1)}
+                </Text>
+              </Animated.View>
+            )}
           </View>
         </Animated.View>
       </View>
@@ -458,6 +570,34 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: COLORS.textDim,
     letterSpacing: 1,
+  },
+  // Rank reveal
+  rankReveal: {
+    marginTop: 8,
+    alignItems: 'center',
+    backgroundColor: 'rgba(10, 22, 40, 0.8)',
+    borderWidth: 1,
+    borderRadius: 6,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+  },
+  rankRevealLabel: {
+    fontFamily: FONTS.mono,
+    fontSize: 8,
+    color: COLORS.textDim,
+    letterSpacing: 2,
+  },
+  rankRevealRank: {
+    fontFamily: FONTS.heading,
+    fontSize: 24,
+    fontWeight: '700',
+    letterSpacing: 2,
+  },
+  rankRevealMultiplier: {
+    fontFamily: FONTS.mono,
+    fontSize: 11,
+    letterSpacing: 1,
+    opacity: 0.8,
   },
   vsContainer: {
     position: 'absolute',

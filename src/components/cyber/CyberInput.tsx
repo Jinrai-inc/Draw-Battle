@@ -9,7 +9,7 @@ interface CyberInputProps extends TextInputProps {
 
 export function CyberInput({ label, glowColor = COLORS.primary, style, ...props }: CyberInputProps) {
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, style]}>
       {label && (
         <Text style={[styles.label, { color: glowColor }]}>{label}</Text>
       )}
@@ -31,9 +31,7 @@ export function CyberInput({ label, glowColor = COLORS.primary, style, ...props 
 }
 
 const styles = StyleSheet.create({
-  container: {
-    width: '100%',
-  },
+  container: {},
   label: {
     fontFamily: FONTS.heading,
     fontSize: 12,
