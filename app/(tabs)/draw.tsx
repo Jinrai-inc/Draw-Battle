@@ -1,12 +1,12 @@
-import React, { useState, useRef, useCallback, useEffect } from 'react';
+import React, { useState, useRef, useCallback } from 'react';
 import {
   View,
   Text,
   StyleSheet,
-  PanResponder,
   Dimensions,
   ScrollView,
   Alert,
+  TouchableOpacity,
 } from 'react-native';
 import Svg, { Path } from 'react-native-svg';
 import { useRouter } from 'expo-router';
@@ -24,10 +24,11 @@ import type { Character } from '../../src/types';
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 const CANVAS_SIZE = SCREEN_WIDTH - 40;
 
-interface DrawPath {
-  points: { x: number; y: number }[];
+interface SvgPathData {
+  d: string;
   color: string;
   width: number;
+  points: { x: number; y: number }[];
 }
 
 const PALETTE_COLORS = [
@@ -41,11 +42,9 @@ const BRUSH_SIZES = [
   { label: 'L', value: 16 },
 ];
 
-// Convert points to smooth SVG path data
 function pointsToSvgPath(points: { x: number; y: number }[]): string {
   if (points.length === 0) return '';
   if (points.length === 1) {
-    // Single point - draw a tiny circle
     const p = points[0];
     return `M ${p.x} ${p.y} L ${p.x + 0.5} ${p.y + 0.5}`;
   }
@@ -57,30 +56,24 @@ function pointsToSvgPath(points: { x: number; y: number }[]): string {
     return d;
   }
 
-  // Use quadratic bezier curves for smoothness
   for (let i = 1; i < points.length - 1; i++) {
     const midX = (points[i].x + points[i + 1].x) / 2;
     const midY = (points[i].y + points[i + 1].y) / 2;
     d += ` Q ${points[i].x} ${points[i].y} ${midX} ${midY}`;
   }
 
-  // Last point
   const last = points[points.length - 1];
   d += ` L ${last.x} ${last.y}`;
-
   return d;
 }
 
-function generateMockPixelData(paths: DrawPath[], canvasSize: number): Uint8Array {
+function generateMockPixelData(paths: SvgPathData[], canvasSize: number): Uint8Array {
   const w = 64;
   const h = 64;
   const data = new Uint8Array(w * h * 4);
 
   for (let i = 0; i < data.length; i += 4) {
-    data[i] = 255;
-    data[i + 1] = 255;
-    data[i + 2] = 255;
-    data[i + 3] = 0;
+    data[i] = 255; data[i + 1] = 255; data[i + 2] = 255; data[i + 3] = 0;
   }
 
   const scale = w / canvasSize;
@@ -112,10 +105,7 @@ function generateMockPixelData(paths: DrawPath[], canvasSize: number): Uint8Arra
             const fy = y + dy;
             if (fx >= 0 && fx < w && fy >= 0 && fy < h) {
               const idx = (fy * w + fx) * 4;
-              data[idx] = r;
-              data[idx + 1] = g;
-              data[idx + 2] = b;
-              data[idx + 3] = 255;
+              data[idx] = r; data[idx + 1] = g; data[idx + 2] = b; data[idx + 3] = 255;
             }
           }
         }
@@ -141,63 +131,104 @@ export default function DrawScreen() {
   const { completeMission } = useDailyMissionStore();
   const t = useLanguageStore((s) => s.t);
 
-  const [paths, setPaths] = useState<DrawPath[]>([]);
-  const [currentPath, setCurrentPath] = useState<DrawPath | null>(null);
+  const [completedPaths, setCompletedPaths] = useState<SvgPathData[]>([]);
+  const [currentSvgPath, setCurrentSvgPath] = useState<string>('');
   const [currentColor, setCurrentColor] = useState('#000000');
   const [brushSize, setBrushSize] = useState(8);
+  const [isDrawing, setIsDrawing] = useState(false);
+  const [scrollEnabled, setScrollEnabled] = useState(true);
 
-  const currentColorRef = useRef(currentColor);
-  const brushSizeRef = useRef(brushSize);
+  // Use refs to accumulate points without re-renders
+  const pointsRef = useRef<{ x: number; y: number }[]>([]);
+  const drawingColorRef = useRef(currentColor);
+  const drawingWidthRef = useRef(brushSize);
+  const canvasRef = useRef<View>(null);
+  const canvasLayoutRef = useRef({ x: 0, y: 0 });
+  const updateTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  useEffect(() => { currentColorRef.current = currentColor; }, [currentColor]);
-  useEffect(() => { brushSizeRef.current = brushSize; }, [brushSize]);
+  // Throttled SVG path update during drawing
+  const updateCurrentSvg = useCallback(() => {
+    if (pointsRef.current.length > 0) {
+      setCurrentSvgPath(pointsToSvgPath(pointsRef.current));
+    }
+  }, []);
 
-  const panResponder = useRef(
-    PanResponder.create({
-      onStartShouldSetPanResponder: () => true,
-      onMoveShouldSetPanResponder: () => true,
-      onPanResponderGrant: (evt) => {
-        const { locationX: x, locationY: y } = evt.nativeEvent;
-        setCurrentPath({
-          points: [{ x, y }],
-          color: currentColorRef.current,
-          width: brushSizeRef.current,
-        });
-      },
-      onPanResponderMove: (evt) => {
-        const { locationX: x, locationY: y } = evt.nativeEvent;
-        setCurrentPath((prev) => {
-          if (!prev) return prev;
-          return { ...prev, points: [...prev.points, { x, y }] };
-        });
-      },
-      onPanResponderRelease: () => {
-        setCurrentPath((prev) => {
-          if (prev && prev.points.length > 0) {
-            setPaths((old) => [...old, prev]);
-          }
-          return null;
-        });
-      },
-    })
-  ).current;
+  const scheduleUpdate = useCallback(() => {
+    if (updateTimerRef.current) return;
+    updateTimerRef.current = setTimeout(() => {
+      updateTimerRef.current = null;
+      updateCurrentSvg();
+    }, 16); // ~60fps
+  }, [updateCurrentSvg]);
+
+  const handleTouchStart = useCallback((e: any) => {
+    const touch = e.nativeEvent;
+    const x = touch.locationX;
+    const y = touch.locationY;
+
+    drawingColorRef.current = currentColor;
+    drawingWidthRef.current = brushSize;
+    pointsRef.current = [{ x, y }];
+    setIsDrawing(true);
+    setScrollEnabled(false);
+    setCurrentSvgPath(pointsToSvgPath([{ x, y }]));
+  }, [currentColor, brushSize]);
+
+  const handleTouchMove = useCallback((e: any) => {
+    if (!isDrawing) return;
+    const touch = e.nativeEvent;
+    const x = touch.locationX;
+    const y = touch.locationY;
+
+    // Clamp to canvas bounds
+    const cx = Math.max(0, Math.min(CANVAS_SIZE, x));
+    const cy = Math.max(0, Math.min(CANVAS_SIZE, y));
+
+    pointsRef.current.push({ x: cx, y: cy });
+    scheduleUpdate();
+  }, [isDrawing, scheduleUpdate]);
+
+  const handleTouchEnd = useCallback(() => {
+    if (!isDrawing) return;
+
+    if (updateTimerRef.current) {
+      clearTimeout(updateTimerRef.current);
+      updateTimerRef.current = null;
+    }
+
+    if (pointsRef.current.length > 0) {
+      const newPath: SvgPathData = {
+        d: pointsToSvgPath(pointsRef.current),
+        color: drawingColorRef.current,
+        width: drawingWidthRef.current,
+        points: [...pointsRef.current],
+      };
+      setCompletedPaths((prev) => [...prev, newPath]);
+    }
+
+    pointsRef.current = [];
+    setCurrentSvgPath('');
+    setIsDrawing(false);
+    setScrollEnabled(true);
+  }, [isDrawing]);
 
   const handleClear = useCallback(() => {
-    setPaths([]);
-    setCurrentPath(null);
+    setCompletedPaths([]);
+    setCurrentSvgPath('');
+    pointsRef.current = [];
   }, []);
 
   const handleUndo = useCallback(() => {
-    setPaths((prev) => prev.slice(0, -1));
+    setCompletedPaths((prev) => prev.slice(0, -1));
   }, []);
 
   const handleComplete = useCallback(() => {
-    if (paths.length === 0) {
+    if (completedPaths.length === 0) {
       Alert.alert('', t('draw_no_data'));
       return;
     }
 
-    const pixelData = generateMockPixelData(paths, CANVAS_SIZE);
+    const pixelData = generateMockPixelData(completedPaths, CANVAS_SIZE);
     const analysis = analyzeDrawing(pixelData, 64, 64);
     const stats = generateStats(analysis);
     const element = determineElement(analysis);
@@ -221,20 +252,24 @@ export default function DrawScreen() {
     };
 
     setDraft(newCharacter, imageBase64);
-    setPaths([]);
+    setCompletedPaths([]);
     if (user?.id) completeMission(user.id, 'draw');
     router.push('/character/naming');
-  }, [paths, setDraft, user, router, t]);
+  }, [completedPaths, setDraft, user, router, t]);
 
-  const allPaths = currentPath ? [...paths, currentPath] : paths;
-  const totalPoints = paths.reduce((sum, p) => sum + (p.points?.length || 0), 0);
+  const totalPoints = completedPaths.reduce((sum, p) => sum + (p.points?.length || 0), 0);
 
   return (
     <SafeAreaView style={styles.container}>
       <GridBackground />
       <ScanlineOverlay />
 
-      <ScrollView style={styles.scroll} contentContainerStyle={styles.scrollContent}>
+      <ScrollView
+        style={styles.scroll}
+        contentContainerStyle={styles.scrollContent}
+        scrollEnabled={scrollEnabled}
+        keyboardShouldPersistTaps="handled"
+      >
         {/* Header */}
         <View style={styles.header}>
           <GlowText size={24} color={COLORS.primary}>
@@ -243,17 +278,22 @@ export default function DrawScreen() {
           <Text style={styles.subtitle}>-- {t('draw_subtitle')} --</Text>
         </View>
 
-        {/* Canvas */}
+        {/* Canvas - using direct touch handlers instead of PanResponder */}
         <View style={styles.canvasWrapper}>
           <View
+            ref={canvasRef}
             style={[styles.canvas, { width: CANVAS_SIZE, height: CANVAS_SIZE }]}
-            {...panResponder.panHandlers}
+            onTouchStart={handleTouchStart}
+            onTouchMove={handleTouchMove}
+            onTouchEnd={handleTouchEnd}
+            onTouchCancel={handleTouchEnd}
           >
             <Svg width={CANVAS_SIZE} height={CANVAS_SIZE} style={StyleSheet.absoluteFill}>
-              {allPaths.map((path, idx) => (
+              {/* Completed paths */}
+              {completedPaths.map((path, idx) => (
                 <Path
                   key={idx}
-                  d={pointsToSvgPath(path.points)}
+                  d={path.d}
                   stroke={path.color}
                   strokeWidth={path.width}
                   strokeLinecap="round"
@@ -261,8 +301,19 @@ export default function DrawScreen() {
                   fill="none"
                 />
               ))}
+              {/* Current drawing path */}
+              {currentSvgPath !== '' && (
+                <Path
+                  d={currentSvgPath}
+                  stroke={drawingColorRef.current}
+                  strokeWidth={drawingWidthRef.current}
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  fill="none"
+                />
+              )}
             </Svg>
-            {paths.length === 0 && !currentPath && (
+            {completedPaths.length === 0 && !isDrawing && (
               <View style={styles.canvasPlaceholder}>
                 <Text style={styles.placeholderText}>{t('draw_here')}</Text>
                 <Text style={styles.placeholderSubtext}>{t('draw_finger_hint')}</Text>
@@ -274,7 +325,7 @@ export default function DrawScreen() {
         {/* Drawing Info */}
         <View style={styles.drawInfo}>
           <Text style={styles.infoText}>
-            {t('draw_strokes')}: {paths.length} {'\u25C6'} {t('draw_points')}: {totalPoints}
+            {t('draw_strokes')}: {completedPaths.length} {'\u25C6'} {t('draw_points')}: {totalPoints}
           </Text>
         </View>
 
@@ -283,7 +334,7 @@ export default function DrawScreen() {
           <Text style={styles.toolLabel}>{t('draw_color')}</Text>
           <View style={styles.paletteRow}>
             {PALETTE_COLORS.map((color) => (
-              <View
+              <TouchableOpacity
                 key={color}
                 style={[
                   styles.colorSwatch,
@@ -291,12 +342,9 @@ export default function DrawScreen() {
                   currentColor === color && styles.colorSwatchSelected,
                   currentColor === color && { borderColor: COLORS.primary },
                 ]}
-              >
-                <View
-                  style={styles.colorTouchable}
-                  onTouchEnd={() => setCurrentColor(color)}
-                />
-              </View>
+                onPress={() => setCurrentColor(color)}
+                activeOpacity={0.7}
+              />
             ))}
           </View>
         </CyberCard>
@@ -326,7 +374,7 @@ export default function DrawScreen() {
             color={COLORS.textDim}
             size="medium"
             style={styles.actionBtn}
-            disabled={paths.length === 0}
+            disabled={completedPaths.length === 0}
           />
           <CyberButton
             title={t('draw_clear')}
@@ -341,7 +389,7 @@ export default function DrawScreen() {
             color={COLORS.success}
             size="medium"
             style={styles.actionBtn}
-            disabled={paths.length === 0}
+            disabled={completedPaths.length === 0}
           />
         </View>
       </ScrollView>
@@ -425,7 +473,6 @@ const styles = StyleSheet.create({
   },
   paletteRow: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
     flexWrap: 'wrap',
     gap: 8,
   },
@@ -435,7 +482,6 @@ const styles = StyleSheet.create({
     borderRadius: 4,
     borderWidth: 2,
     borderColor: 'rgba(255,255,255,0.2)',
-    overflow: 'hidden',
   },
   colorSwatchSelected: {
     borderWidth: 3,
@@ -444,9 +490,6 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.8,
     shadowRadius: 6,
     elevation: 4,
-  },
-  colorTouchable: {
-    flex: 1,
   },
   brushRow: {
     flexDirection: 'row',
