@@ -8,16 +8,18 @@ import {
   ScrollView,
   Alert,
 } from 'react-native';
+import Svg, { Path } from 'react-native-svg';
 import { useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { COLORS, FONTS, GAME_CONFIG } from '../../src/config/gameConfig';
-import { CyberButton, CyberCard, GlowText, CyberInput } from '../../src/components/cyber';
+import { CyberButton, CyberCard, GlowText } from '../../src/components/cyber';
 import { ScanlineOverlay, GridBackground } from '../../src/components/cyber/ScanlineOverlay';
 import { useCollectionStore } from '../../src/stores/collectionStore';
 import { useAuthStore } from '../../src/stores/authStore';
 import { useDailyMissionStore } from '../../src/stores/dailyMissionStore';
+import { useLanguageStore } from '../../src/stores/languageStore';
 import { analyzeDrawing, generateStats, determineElement, determineRarity } from '../../src/engine/drawingAnalyzer';
-import type { Character, DrawingAnalysis } from '../../src/types';
+import type { Character } from '../../src/types';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 const CANVAS_SIZE = SCREEN_WIDTH - 40;
@@ -39,23 +41,51 @@ const BRUSH_SIZES = [
   { label: 'L', value: 16 },
 ];
 
+// Convert points to smooth SVG path data
+function pointsToSvgPath(points: { x: number; y: number }[]): string {
+  if (points.length === 0) return '';
+  if (points.length === 1) {
+    // Single point - draw a tiny circle
+    const p = points[0];
+    return `M ${p.x} ${p.y} L ${p.x + 0.5} ${p.y + 0.5}`;
+  }
+
+  let d = `M ${points[0].x} ${points[0].y}`;
+
+  if (points.length === 2) {
+    d += ` L ${points[1].x} ${points[1].y}`;
+    return d;
+  }
+
+  // Use quadratic bezier curves for smoothness
+  for (let i = 1; i < points.length - 1; i++) {
+    const midX = (points[i].x + points[i + 1].x) / 2;
+    const midY = (points[i].y + points[i + 1].y) / 2;
+    d += ` Q ${points[i].x} ${points[i].y} ${midX} ${midY}`;
+  }
+
+  // Last point
+  const last = points[points.length - 1];
+  d += ` L ${last.x} ${last.y}`;
+
+  return d;
+}
+
 function generateMockPixelData(paths: DrawPath[], canvasSize: number): Uint8Array {
   const w = 64;
   const h = 64;
   const data = new Uint8Array(w * h * 4);
 
-  // Fill with white background (RGBA)
   for (let i = 0; i < data.length; i += 4) {
     data[i] = 255;
     data[i + 1] = 255;
     data[i + 2] = 255;
-    data[i + 3] = 0; // transparent background
+    data[i + 3] = 0;
   }
 
   const scale = w / canvasSize;
 
   for (const path of paths) {
-    // Parse hex color
     let r = 0, g = 0, b = 0;
     const hex = path.color.replace('#', '');
     if (hex.length === 6) {
@@ -64,21 +94,29 @@ function generateMockPixelData(paths: DrawPath[], canvasSize: number): Uint8Arra
       b = parseInt(hex.substring(4, 6), 16);
     }
 
-    for (const pt of path.points) {
-      const px = Math.floor(pt.x * scale);
-      const py = Math.floor(pt.y * scale);
-      const brushRadius = Math.max(1, Math.floor(path.width * scale * 0.5));
+    for (let pi = 0; pi < path.points.length - 1; pi++) {
+      const p0 = path.points[pi];
+      const p1 = path.points[pi + 1];
+      const dist = Math.sqrt((p1.x - p0.x) ** 2 + (p1.y - p0.y) ** 2);
+      const steps = Math.max(1, Math.ceil(dist * scale));
 
-      for (let dy = -brushRadius; dy <= brushRadius; dy++) {
-        for (let dx = -brushRadius; dx <= brushRadius; dx++) {
-          const fx = px + dx;
-          const fy = py + dy;
-          if (fx >= 0 && fx < w && fy >= 0 && fy < h) {
-            const idx = (fy * w + fx) * 4;
-            data[idx] = r;
-            data[idx + 1] = g;
-            data[idx + 2] = b;
-            data[idx + 3] = 255;
+      for (let s = 0; s <= steps; s++) {
+        const t = s / steps;
+        const x = Math.floor((p0.x + (p1.x - p0.x) * t) * scale);
+        const y = Math.floor((p0.y + (p1.y - p0.y) * t) * scale);
+        const brushRadius = Math.max(1, Math.floor(path.width * scale * 0.5));
+
+        for (let dy = -brushRadius; dy <= brushRadius; dy++) {
+          for (let dx = -brushRadius; dx <= brushRadius; dx++) {
+            const fx = x + dx;
+            const fy = y + dy;
+            if (fx >= 0 && fx < w && fy >= 0 && fy < h) {
+              const idx = (fy * w + fx) * 4;
+              data[idx] = r;
+              data[idx + 1] = g;
+              data[idx + 2] = b;
+              data[idx + 3] = 255;
+            }
           }
         }
       }
@@ -88,8 +126,6 @@ function generateMockPixelData(paths: DrawPath[], canvasSize: number): Uint8Arra
   return data;
 }
 
-// Convert pixel data (Uint8Array RGBA) to base64 PNG-like string
-// In production this would use a canvas to encode real PNG; for now we store raw RGBA
 function pixelDataToBase64(data: Uint8Array): string {
   let binary = '';
   for (let i = 0; i < data.length; i++) {
@@ -103,17 +139,16 @@ export default function DrawScreen() {
   const { setDraft } = useCollectionStore();
   const user = useAuthStore((s) => s.user);
   const { completeMission } = useDailyMissionStore();
+  const t = useLanguageStore((s) => s.t);
 
   const [paths, setPaths] = useState<DrawPath[]>([]);
+  const [currentPath, setCurrentPath] = useState<DrawPath | null>(null);
   const [currentColor, setCurrentColor] = useState('#000000');
   const [brushSize, setBrushSize] = useState(8);
-  const [isDrawing, setIsDrawing] = useState(false);
 
-  const currentPathRef = useRef<DrawPath | null>(null);
   const currentColorRef = useRef(currentColor);
   const brushSizeRef = useRef(brushSize);
 
-  // Keep refs in sync with state so PanResponder always uses latest values
   useEffect(() => { currentColorRef.current = currentColor; }, [currentColor]);
   useEffect(() => { brushSizeRef.current = brushSize; }, [brushSize]);
 
@@ -122,48 +157,46 @@ export default function DrawScreen() {
       onStartShouldSetPanResponder: () => true,
       onMoveShouldSetPanResponder: () => true,
       onPanResponderGrant: (evt) => {
-        const touch = evt.nativeEvent;
-        const x = touch.locationX;
-        const y = touch.locationY;
-        currentPathRef.current = {
+        const { locationX: x, locationY: y } = evt.nativeEvent;
+        setCurrentPath({
           points: [{ x, y }],
           color: currentColorRef.current,
           width: brushSizeRef.current,
-        };
-        setIsDrawing(true);
+        });
       },
       onPanResponderMove: (evt) => {
-        if (currentPathRef.current) {
-          const touch = evt.nativeEvent;
-          const x = touch.locationX;
-          const y = touch.locationY;
-          currentPathRef.current.points.push({ x, y });
-          // Force re-render by updating paths
-          setPaths((prev) => [...prev]);
-        }
+        const { locationX: x, locationY: y } = evt.nativeEvent;
+        setCurrentPath((prev) => {
+          if (!prev) return prev;
+          return { ...prev, points: [...prev.points, { x, y }] };
+        });
       },
       onPanResponderRelease: () => {
-        if (currentPathRef.current && currentPathRef.current.points.length > 0) {
-          setPaths((prev) => [...prev, { ...currentPathRef.current! }]);
-        }
-        currentPathRef.current = null;
-        setIsDrawing(false);
+        setCurrentPath((prev) => {
+          if (prev && prev.points.length > 0) {
+            setPaths((old) => [...old, prev]);
+          }
+          return null;
+        });
       },
     })
   ).current;
 
   const handleClear = useCallback(() => {
     setPaths([]);
-    currentPathRef.current = null;
+    setCurrentPath(null);
+  }, []);
+
+  const handleUndo = useCallback(() => {
+    setPaths((prev) => prev.slice(0, -1));
   }, []);
 
   const handleComplete = useCallback(() => {
     if (paths.length === 0) {
-      Alert.alert('NO DATA', 'Draw something on the canvas first!');
+      Alert.alert('', t('draw_no_data'));
       return;
     }
 
-    // Generate pixel data from paths
     const pixelData = generateMockPixelData(paths, CANVAS_SIZE);
     const analysis = analyzeDrawing(pixelData, 64, 64);
     const stats = generateStats(analysis);
@@ -187,39 +220,14 @@ export default function DrawScreen() {
       createdAt: new Date().toISOString(),
     };
 
-    // Save as draft and navigate to naming screen
     setDraft(newCharacter, imageBase64);
     setPaths([]);
     if (user?.id) completeMission(user.id, 'draw');
     router.push('/character/naming');
-  }, [paths, setDraft, user, router]);
+  }, [paths, setDraft, user, router, t]);
 
-  // Render drawn paths as small dot views
-  const renderPaths = () => {
-    const allPaths = [...paths];
-    if (currentPathRef.current) {
-      allPaths.push(currentPathRef.current);
-    }
-
-    return allPaths.map((path, pathIdx) =>
-      path.points.map((pt, ptIdx) => (
-        <View
-          key={`${pathIdx}-${ptIdx}`}
-          style={{
-            position: 'absolute',
-            left: pt.x - path.width / 2,
-            top: pt.y - path.width / 2,
-            width: path.width,
-            height: path.width,
-            borderRadius: path.width / 2,
-            backgroundColor: path.color,
-          }}
-        />
-      ))
-    );
-  };
-
-  const totalPoints = paths.reduce((sum, p) => sum + p.points.length, 0);
+  const allPaths = currentPath ? [...paths, currentPath] : paths;
+  const totalPoints = paths.reduce((sum, p) => sum + (p.points?.length || 0), 0);
 
   return (
     <SafeAreaView style={styles.container}>
@@ -230,9 +238,9 @@ export default function DrawScreen() {
         {/* Header */}
         <View style={styles.header}>
           <GlowText size={24} color={COLORS.primary}>
-            {'\u25C8'} DRAW CHARACTER
+            {t('draw_title')}
           </GlowText>
-          <Text style={styles.subtitle}>-- SKETCH YOUR FIGHTER --</Text>
+          <Text style={styles.subtitle}>-- {t('draw_subtitle')} --</Text>
         </View>
 
         {/* Canvas */}
@@ -241,13 +249,23 @@ export default function DrawScreen() {
             style={[styles.canvas, { width: CANVAS_SIZE, height: CANVAS_SIZE }]}
             {...panResponder.panHandlers}
           >
-            {renderPaths()}
-            {paths.length === 0 && !isDrawing && (
+            <Svg width={CANVAS_SIZE} height={CANVAS_SIZE} style={StyleSheet.absoluteFill}>
+              {allPaths.map((path, idx) => (
+                <Path
+                  key={idx}
+                  d={pointsToSvgPath(path.points)}
+                  stroke={path.color}
+                  strokeWidth={path.width}
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  fill="none"
+                />
+              ))}
+            </Svg>
+            {paths.length === 0 && !currentPath && (
               <View style={styles.canvasPlaceholder}>
-                <Text style={styles.placeholderText}>{'\u25A1'} DRAW HERE {'\u25A1'}</Text>
-                <Text style={styles.placeholderSubtext}>
-                  Use your finger to sketch a character
-                </Text>
+                <Text style={styles.placeholderText}>{t('draw_here')}</Text>
+                <Text style={styles.placeholderSubtext}>{t('draw_finger_hint')}</Text>
               </View>
             )}
           </View>
@@ -256,13 +274,13 @@ export default function DrawScreen() {
         {/* Drawing Info */}
         <View style={styles.drawInfo}>
           <Text style={styles.infoText}>
-            STROKES: {paths.length} {'\u25C6'} POINTS: {totalPoints}
+            {t('draw_strokes')}: {paths.length} {'\u25C6'} {t('draw_points')}: {totalPoints}
           </Text>
         </View>
 
         {/* Color Palette */}
         <CyberCard style={styles.toolCard}>
-          <Text style={styles.toolLabel}>{'\u25B7'} COLOR</Text>
+          <Text style={styles.toolLabel}>{t('draw_color')}</Text>
           <View style={styles.paletteRow}>
             {PALETTE_COLORS.map((color) => (
               <View
@@ -285,7 +303,7 @@ export default function DrawScreen() {
 
         {/* Brush Size */}
         <CyberCard style={styles.toolCard}>
-          <Text style={styles.toolLabel}>{'\u25B7'} BRUSH SIZE</Text>
+          <Text style={styles.toolLabel}>{t('draw_brush_size')}</Text>
           <View style={styles.brushRow}>
             {BRUSH_SIZES.map((bs) => (
               <CyberButton
@@ -303,14 +321,22 @@ export default function DrawScreen() {
         {/* Actions */}
         <View style={styles.actionRow}>
           <CyberButton
-            title="CLEAR"
+            title={t('draw_undo')}
+            onPress={handleUndo}
+            color={COLORS.textDim}
+            size="medium"
+            style={styles.actionBtn}
+            disabled={paths.length === 0}
+          />
+          <CyberButton
+            title={t('draw_clear')}
             onPress={handleClear}
             color={COLORS.danger}
             size="medium"
             style={styles.actionBtn}
           />
           <CyberButton
-            title="COMPLETE"
+            title={t('draw_complete')}
             onPress={handleComplete}
             color={COLORS.success}
             size="medium"
@@ -342,10 +368,10 @@ const styles = StyleSheet.create({
     marginTop: 10,
   },
   subtitle: {
-    fontFamily: FONTS.heading,
+    fontFamily: FONTS.body,
     fontSize: 11,
     color: COLORS.textDim,
-    letterSpacing: 3,
+    letterSpacing: 2,
     marginTop: 4,
   },
   canvasWrapper: {
@@ -361,15 +387,14 @@ const styles = StyleSheet.create({
     position: 'relative',
   },
   canvasPlaceholder: {
-    flex: 1,
+    ...StyleSheet.absoluteFillObject,
     alignItems: 'center',
     justifyContent: 'center',
   },
   placeholderText: {
-    fontFamily: FONTS.heading,
+    fontFamily: FONTS.body,
     fontSize: 16,
     color: 'rgba(0,0,0,0.2)',
-    letterSpacing: 2,
   },
   placeholderSubtext: {
     fontFamily: FONTS.body,
@@ -391,11 +416,12 @@ const styles = StyleSheet.create({
     marginBottom: 12,
   },
   toolLabel: {
-    fontFamily: FONTS.heading,
-    fontSize: 12,
+    fontFamily: FONTS.body,
+    fontSize: 13,
     color: COLORS.primary,
-    letterSpacing: 2,
+    letterSpacing: 1,
     marginBottom: 8,
+    fontWeight: '600',
   },
   paletteRow: {
     flexDirection: 'row',
@@ -431,7 +457,7 @@ const styles = StyleSheet.create({
   },
   actionRow: {
     flexDirection: 'row',
-    gap: 12,
+    gap: 10,
     marginTop: 8,
   },
   actionBtn: {

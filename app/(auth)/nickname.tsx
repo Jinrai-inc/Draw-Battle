@@ -9,17 +9,19 @@ import { ScanlineOverlay, GridBackground } from '../../src/components/cyber/Scan
 import { supabase } from '../../src/services/supabase';
 import { createUserProfile } from '../../src/services/authService';
 import { useAuthStore, mapDbUser } from '../../src/stores/authStore';
+import { useLanguageStore } from '../../src/stores/languageStore';
 
 export default function NicknameScreen() {
   const router = useRouter();
   const setUser = useAuthStore((s) => s.setUser);
+  const t = useLanguageStore((s) => s.t);
   const [nickname, setNickname] = useState('');
   const [loading, setLoading] = useState(false);
 
   const handleStart = async () => {
     const trimmed = nickname.trim();
     if (trimmed.length < 3 || trimmed.length > 12) {
-      Alert.alert('', 'ニックネームは3〜12文字で入力してください');
+      Alert.alert('', t('nickname_error'));
       return;
     }
 
@@ -36,7 +38,7 @@ export default function NicknameScreen() {
       setUser(mapDbUser(profile));
       router.replace('/(tabs)');
     } catch (err: any) {
-      Alert.alert('', err.message || 'エラーが発生しました');
+      Alert.alert('', err.message || t('error'));
     } finally {
       setLoading(false);
     }
@@ -49,24 +51,19 @@ export default function NicknameScreen() {
 
       <View style={styles.content}>
         <GlowText size={22} color={COLORS.primary}>
-          ニックネームを決めよう
+          {t('nickname_title')}
         </GlowText>
-        <Text style={styles.hint}>
-          {'ランキングやフレンドに表示されます\n3〜12文字'}
-        </Text>
+        <Text style={styles.hint}>{t('nickname_hint')}</Text>
 
         <View style={styles.form}>
           <CyberInput
-            placeholder="ニックネーム..."
+            placeholder={t('nickname_placeholder')}
             value={nickname}
             onChangeText={setNickname}
             maxLength={12}
             autoFocus
           />
-
-          <Text style={styles.charCount}>
-            {nickname.trim().length} / 12
-          </Text>
+          <Text style={styles.charCount}>{nickname.trim().length} / 12</Text>
 
           {loading ? (
             <ActivityIndicator size="large" color={COLORS.primary} style={{ marginTop: 16 }} />
@@ -77,7 +74,7 @@ export default function NicknameScreen() {
               disabled={nickname.trim().length < 3}
               activeOpacity={0.8}
             >
-              <Text style={styles.startText}>はじめる</Text>
+              <Text style={styles.startText}>{t('nickname_start')}</Text>
             </TouchableOpacity>
           )}
         </View>
@@ -87,51 +84,12 @@ export default function NicknameScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: COLORS.background,
-  },
-  content: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-    padding: 20,
-    zIndex: 10,
-  },
-  hint: {
-    fontFamily: FONTS.body,
-    fontSize: 13,
-    color: COLORS.textDim,
-    textAlign: 'center',
-    marginTop: 12,
-    marginBottom: 32,
-    lineHeight: 20,
-  },
-  form: {
-    width: '100%',
-    maxWidth: 320,
-    gap: 12,
-  },
-  charCount: {
-    fontFamily: FONTS.mono,
-    fontSize: 12,
-    color: COLORS.textDim,
-    textAlign: 'right',
-  },
-  startButton: {
-    backgroundColor: COLORS.primary,
-    paddingVertical: 14,
-    borderRadius: 12,
-    alignItems: 'center',
-    marginTop: 8,
-  },
-  startButtonDisabled: {
-    opacity: 0.4,
-  },
-  startText: {
-    fontFamily: FONTS.body,
-    fontSize: 18,
-    fontWeight: '700',
-    color: COLORS.background,
-  },
+  container: { flex: 1, backgroundColor: COLORS.background },
+  content: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: 20, zIndex: 10 },
+  hint: { fontFamily: FONTS.body, fontSize: 13, color: COLORS.textDim, textAlign: 'center', marginTop: 12, marginBottom: 32, lineHeight: 20 },
+  form: { width: '100%', maxWidth: 320, gap: 12 },
+  charCount: { fontFamily: FONTS.mono, fontSize: 12, color: COLORS.textDim, textAlign: 'right' },
+  startButton: { backgroundColor: COLORS.primary, paddingVertical: 14, borderRadius: 12, alignItems: 'center', marginTop: 8 },
+  startButtonDisabled: { opacity: 0.4 },
+  startText: { fontFamily: FONTS.body, fontSize: 18, fontWeight: '700', color: COLORS.background },
 });

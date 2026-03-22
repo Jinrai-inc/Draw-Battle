@@ -8,10 +8,14 @@ import { GlowText } from '../../src/components/cyber/GlowText';
 import { ScanlineOverlay, GridBackground } from '../../src/components/cyber/ScanlineOverlay';
 import { signInWithGoogle, signInWithApple, createGuestProfile } from '../../src/services/authService';
 import { useAuthStore, mapDbUser } from '../../src/stores/authStore';
+import { useLanguageStore } from '../../src/stores/languageStore';
+import { LANGUAGE_LABELS, type Language } from '../../src/i18n/translations';
 
 export default function LoginScreen() {
   const router = useRouter();
   const setGuest = useAuthStore((s) => s.setGuest);
+  const t = useLanguageStore((s) => s.t);
+  const { language, setLanguage } = useLanguageStore();
   const [loading, setLoading] = useState<string | null>(null);
 
   const handleGoogleSignIn = async () => {
@@ -19,7 +23,7 @@ export default function LoginScreen() {
     try {
       await signInWithGoogle();
     } catch (err: any) {
-      Alert.alert('エラー', err.message || 'Googleログインに失敗しました');
+      Alert.alert(t('error'), err.message || 'Google login failed');
     } finally {
       setLoading(null);
     }
@@ -30,7 +34,7 @@ export default function LoginScreen() {
     try {
       await signInWithApple();
     } catch (err: any) {
-      Alert.alert('エラー', err.message || 'Appleログインに失敗しました');
+      Alert.alert(t('error'), err.message || 'Apple login failed');
     } finally {
       setLoading(null);
     }
@@ -39,12 +43,12 @@ export default function LoginScreen() {
   const handleGuestSignIn = async () => {
     setLoading('guest');
     try {
-      const guestName = 'ゲスト' + Math.floor(Math.random() * 9000 + 1000);
+      const guestName = 'Guest' + Math.floor(Math.random() * 9000 + 1000);
       const profile = createGuestProfile(guestName);
       setGuest(mapDbUser(profile));
       router.replace('/(tabs)');
     } catch (err: any) {
-      Alert.alert('エラー', err.message || 'ゲストログインに失敗しました');
+      Alert.alert(t('error'), err.message || 'Guest login failed');
     } finally {
       setLoading(null);
     }
@@ -56,15 +60,30 @@ export default function LoginScreen() {
       <ScanlineOverlay />
 
       <View style={styles.content}>
-        {/* タイトル */}
+        {/* Language Selector */}
+        <View style={styles.langRow}>
+          {(Object.keys(LANGUAGE_LABELS) as Language[]).map((lang) => (
+            <TouchableOpacity
+              key={lang}
+              onPress={() => setLanguage(lang)}
+              style={[styles.langChip, language === lang && styles.langChipActive]}
+              activeOpacity={0.7}
+            >
+              <Text style={[styles.langText, language === lang && styles.langTextActive]}>
+                {LANGUAGE_LABELS[lang]}
+              </Text>
+            </TouchableOpacity>
+          ))}
+        </View>
+
+        {/* Title */}
         <View style={styles.header}>
           <GlowText size={32} color={COLORS.primary}>DRAW BATTLE</GlowText>
           <Text style={styles.subtitle}>-- CYBER ARENA --</Text>
         </View>
 
-        {/* ログインボタン */}
+        {/* Login Buttons */}
         <View style={styles.buttons}>
-          {/* Google */}
           <TouchableOpacity
             style={[styles.loginButton, styles.googleButton]}
             onPress={handleGoogleSignIn}
@@ -76,12 +95,11 @@ export default function LoginScreen() {
             ) : (
               <>
                 <FontAwesome name="google" size={20} color="#fff" style={styles.icon} />
-                <Text style={styles.loginText}>Googleでログイン</Text>
+                <Text style={styles.loginText}>{t('login_google')}</Text>
               </>
             )}
           </TouchableOpacity>
 
-          {/* Apple */}
           <TouchableOpacity
             style={[styles.loginButton, styles.appleButton]}
             onPress={handleAppleSignIn}
@@ -93,12 +111,11 @@ export default function LoginScreen() {
             ) : (
               <>
                 <Ionicons name="logo-apple" size={22} color="#fff" style={styles.icon} />
-                <Text style={styles.loginText}>Appleでログイン</Text>
+                <Text style={styles.loginText}>{t('login_apple')}</Text>
               </>
             )}
           </TouchableOpacity>
 
-          {/* メール */}
           <TouchableOpacity
             style={[styles.loginButton, styles.emailButton]}
             onPress={() => router.push('/(auth)/register')}
@@ -106,17 +123,15 @@ export default function LoginScreen() {
             activeOpacity={0.8}
           >
             <Ionicons name="mail-outline" size={20} color="#fff" style={styles.icon} />
-            <Text style={styles.loginText}>メールで登録 / ログイン</Text>
+            <Text style={styles.loginText}>{t('login_email')}</Text>
           </TouchableOpacity>
 
-          {/* 区切り線 */}
           <View style={styles.divider}>
             <View style={styles.dividerLine} />
-            <Text style={styles.dividerText}>または</Text>
+            <Text style={styles.dividerText}>{t('login_or')}</Text>
             <View style={styles.dividerLine} />
           </View>
 
-          {/* ゲスト */}
           <TouchableOpacity
             style={[styles.loginButton, styles.guestButton]}
             onPress={handleGuestSignIn}
@@ -128,18 +143,14 @@ export default function LoginScreen() {
             ) : (
               <>
                 <Ionicons name="person-outline" size={20} color={COLORS.primary} style={styles.icon} />
-                <Text style={[styles.loginText, { color: COLORS.primary }]}>
-                  ゲストではじめる
-                </Text>
+                <Text style={[styles.loginText, { color: COLORS.primary }]}>{t('login_guest')}</Text>
               </>
             )}
           </TouchableOpacity>
-          <Text style={styles.guestNote}>※ログインなしですぐ遊べます</Text>
+          <Text style={styles.guestNote}>{t('login_guest_note')}</Text>
         </View>
 
-        <Text style={styles.terms}>
-          {'登録により利用規約に同意したものとみなします'}
-        </Text>
+        <Text style={styles.terms}>{t('login_terms')}</Text>
       </View>
     </SafeAreaView>
   );
@@ -157,9 +168,35 @@ const styles = StyleSheet.create({
     padding: 24,
     zIndex: 10,
   },
+  langRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    justifyContent: 'center',
+    gap: 6,
+    marginBottom: 24,
+  },
+  langChip: {
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.2)',
+  },
+  langChipActive: {
+    borderColor: COLORS.primary,
+    backgroundColor: 'rgba(0,255,255,0.1)',
+  },
+  langText: {
+    fontFamily: FONTS.body,
+    fontSize: 12,
+    color: COLORS.textDim,
+  },
+  langTextActive: {
+    color: COLORS.primary,
+  },
   header: {
     alignItems: 'center',
-    marginBottom: 48,
+    marginBottom: 36,
   },
   subtitle: {
     fontFamily: FONTS.heading,
@@ -182,15 +219,9 @@ const styles = StyleSheet.create({
     marginBottom: 12,
     minHeight: 52,
   },
-  googleButton: {
-    backgroundColor: '#4285F4',
-  },
-  appleButton: {
-    backgroundColor: '#333333',
-  },
-  emailButton: {
-    backgroundColor: '#6B5CE7',
-  },
+  googleButton: { backgroundColor: '#4285F4' },
+  appleButton: { backgroundColor: '#333333' },
+  emailButton: { backgroundColor: '#6B5CE7' },
   guestButton: {
     backgroundColor: 'transparent',
     borderWidth: 1.5,
@@ -203,7 +234,7 @@ const styles = StyleSheet.create({
   },
   loginText: {
     fontFamily: FONTS.body,
-    fontSize: 16,
+    fontSize: 15,
     fontWeight: '600',
     color: '#fff',
   },
@@ -213,7 +244,6 @@ const styles = StyleSheet.create({
     color: COLORS.textDim,
     textAlign: 'center',
     marginTop: -4,
-    marginBottom: 4,
   },
   divider: {
     flexDirection: 'row',
