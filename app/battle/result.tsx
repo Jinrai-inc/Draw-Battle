@@ -13,6 +13,9 @@ import { playSE, playBGM, SE, BGM } from '../../src/services/soundService';
 import { ParticleEffect } from '../../src/components/cyber/ParticleEffect';
 import { useAdControl } from '../../src/hooks/useAdControl';
 import { createEquipment } from '../../src/services/equipmentService';
+import { useTitleStore } from '../../src/stores/titleStore';
+import { useCollectionStore } from '../../src/stores/collectionStore';
+import { TitleUnlockToast } from '../../src/components/cyber/TitleUnlockToast';
 
 export default function ResultScreen() {
   const router = useRouter();
@@ -27,9 +30,13 @@ export default function ResultScreen() {
 
   const { addEquipment } = useEquipmentStore();
   const { user } = useAuthStore();
+  const { characters } = useCollectionStore();
+  const { checkTitles, incrementWinStreak, resetWinStreak, popNewlyUnlocked } = useTitleStore();
   const { onBattleEnd, showExpBoostAd } = useAdControl();
   const [expMultiplied, setExpMultiplied] = React.useState(false);
   const [dropSaved, setDropSaved] = React.useState(false);
+  const [showingTitleId, setShowingTitleId] = React.useState<string | null>(null);
+  const titleCheckedRef = React.useRef(false);
 
   const titleScale = useRef(new Animated.Value(0)).current;
   const titleOpacity = useRef(new Animated.Value(0)).current;
@@ -43,6 +50,24 @@ export default function ResultScreen() {
     playBGM(isPlayerWinner ? BGM.RESULT_WIN : BGM.RESULT_LOSE);
     onBattleEnd();
   }, []);
+
+  // Check titles after battle
+  useEffect(() => {
+    if (titleCheckedRef.current || !user?.id || !battleResult) return;
+    titleCheckedRef.current = true;
+
+    if (isPlayerWinner) {
+      incrementWinStreak();
+    } else {
+      resetWinStreak();
+    }
+
+    checkTitles(user.id, characters, user.totalWins + (isPlayerWinner ? 1 : 0)).then(newIds => {
+      if (newIds.length > 0) {
+        setShowingTitleId(newIds[0]);
+      }
+    });
+  }, [user?.id, battleResult]);
 
   // Save equipment drop to store and DB
   useEffect(() => {
@@ -382,6 +407,19 @@ export default function ResultScreen() {
       )}
 
       <ScanlineOverlay />
+
+      {/* Title unlock toast */}
+      {showingTitleId && (
+        <TitleUnlockToast
+          titleId={showingTitleId}
+          onDone={() => {
+            setShowingTitleId(null);
+            // Show next queued title if any
+            const next = popNewlyUnlocked();
+            if (next) setTimeout(() => setShowingTitleId(next), 300);
+          }}
+        />
+      )}
     </View>
   );
 }

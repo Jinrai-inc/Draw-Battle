@@ -7,11 +7,13 @@ import { CyberButton, CyberCard, GlowText, CyberInput } from '../../src/componen
 import { ScanlineOverlay, GridBackground } from '../../src/components/cyber/ScanlineOverlay';
 import { useBattleStore } from '../../src/stores/battleStore';
 import { useCollectionStore } from '../../src/stores/collectionStore';
+import { useNetworkStatus } from '../../src/hooks/useNetworkStatus';
 
 export default function BattleScreen() {
   const router = useRouter();
   const { setPlayerCharacter, setPhase } = useBattleStore();
   const { selectedCharacter, characters } = useCollectionStore();
+  const { isOnline } = useNetworkStatus();
 
   const hasCharacters = characters.length > 0;
   const hasSelected = selectedCharacter !== null;
@@ -157,10 +159,12 @@ export default function BattleScreen() {
             color={COLORS.secondary}
             size="medium"
             style={styles.battleBtn}
-            disabled={!hasSelected}
+            disabled={!hasSelected || !isOnline}
           />
           <Text style={styles.modeDesc}>
-            Match against a random online player via Supabase Realtime
+            {isOnline
+              ? 'Match against a random online player via Supabase Realtime'
+              : '\u25C8 OFFLINE - Online match unavailable'}
           </Text>
 
           {/* Friend Battle */}
@@ -175,10 +179,12 @@ export default function BattleScreen() {
             color={COLORS.primary}
             size="medium"
             style={styles.battleBtn}
-            disabled={!hasSelected}
+            disabled={!hasSelected || !isOnline}
           />
           <Text style={styles.modeDesc}>
-            Challenge a friend (offline friends battle their best AI character)
+            {isOnline
+              ? 'Challenge a friend (offline friends battle their best AI character)'
+              : '\u25C8 OFFLINE - Friend battle unavailable'}
           </Text>
         </CyberCard>
       </ScrollView>

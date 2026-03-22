@@ -7,19 +7,24 @@ import { ScanlineOverlay, GridBackground } from '../../src/components/cyber/Scan
 import { useCollectionStore } from '../../src/stores/collectionStore';
 import { useAuthStore } from '../../src/stores/authStore';
 import { useEquipmentStore } from '../../src/stores/equipmentStore';
+import { useTitleStore } from '../../src/stores/titleStore';
+import { useNetworkStatus } from '../../src/hooks/useNetworkStatus';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 export default function HomeScreen() {
   const router = useRouter();
   const { characters, loadCharacters } = useCollectionStore();
   const { loadEquipment } = useEquipmentStore();
+  const { loadUnlockedTitles } = useTitleStore();
   const user = useAuthStore((s) => s.user);
+  const { isOnline } = useNetworkStatus();
 
-  // Load characters and equipment from DB on mount
+  // Load characters, equipment, and titles from DB on mount
   useEffect(() => {
     if (user?.id) {
       loadCharacters(user.id);
       loadEquipment(user.id);
+      loadUnlockedTitles(user.id);
     }
   }, [user?.id]);
 
@@ -29,6 +34,15 @@ export default function HomeScreen() {
       <ScanlineOverlay />
 
       <ScrollView style={styles.scroll} contentContainerStyle={styles.scrollContent}>
+        {/* Offline banner */}
+        {!isOnline && (
+          <View style={styles.offlineBanner}>
+            <Text style={styles.offlineBannerText}>
+              {'\u25C8'} OFFLINE MODE - AI battles only
+            </Text>
+          </View>
+        )}
+
         {/* Header */}
         <View style={styles.header}>
           <GlowText size={28} color={COLORS.primary}>DRAW BATTLE</GlowText>
@@ -167,5 +181,21 @@ const styles = StyleSheet.create({
     fontFamily: FONTS.body,
     fontSize: 14,
     color: COLORS.text,
+  },
+  offlineBanner: {
+    backgroundColor: 'rgba(255, 68, 68, 0.15)',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 68, 68, 0.3)',
+    borderRadius: 6,
+    paddingVertical: 8,
+    paddingHorizontal: 14,
+    marginBottom: 12,
+    alignItems: 'center',
+  },
+  offlineBannerText: {
+    fontFamily: FONTS.mono,
+    fontSize: 11,
+    color: COLORS.danger,
+    letterSpacing: 1,
   },
 });

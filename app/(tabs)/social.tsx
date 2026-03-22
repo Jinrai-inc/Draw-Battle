@@ -5,8 +5,10 @@ import { COLORS, FONTS } from '../../src/config/gameConfig';
 import { CyberButton, CyberCard, GlowText, CyberInput } from '../../src/components/cyber';
 import { ScanlineOverlay, GridBackground } from '../../src/components/cyber/ScanlineOverlay';
 import { useAuthStore } from '../../src/stores/authStore';
+import { useTitleStore } from '../../src/stores/titleStore';
 import * as friendService from '../../src/services/friendService';
 import * as rankingService from '../../src/services/rankingService';
+import { TITLE_DEFINITIONS } from '../../src/services/titleService';
 import type { RankingEntry } from '../../src/types';
 
 type RankingType = 'wins' | 'damage' | 'collection';
@@ -26,6 +28,7 @@ interface FriendDisplay {
 
 export default function SocialScreen() {
   const user = useAuthStore(s => s.user);
+  const { unlockedIds, loadUnlockedTitles } = useTitleStore();
   const [friendIdInput, setFriendIdInput] = useState('');
   const [friends, setFriends] = useState<FriendDisplay[]>([]);
   const [pendingRequests, setPendingRequests] = useState<any[]>([]);
@@ -71,7 +74,10 @@ export default function SocialScreen() {
   }, [rankingType]);
 
   useEffect(() => {
-    if (user?.id) loadFriends();
+    if (user?.id) {
+      loadFriends();
+      loadUnlockedTitles(user.id);
+    }
   }, [user?.id, loadFriends]);
 
   useEffect(() => {
@@ -283,17 +289,11 @@ export default function SocialScreen() {
         {/* Titles Tab */}
         {activeTab === 'titles' && (
           <CyberCard style={styles.card} accentColor={COLORS.warning}>
-            <Text style={styles.cardTitle}>{'\u25C6'} TITLES</Text>
-            {[
-              { id: 'first_win', name: 'Initial Victory', desc: 'Win your first battle', icon: '\u25B7' },
-              { id: 'collector_10', name: 'Collector', desc: 'Save 10 characters', icon: '\u25C6' },
-              { id: 'hundred_wins', name: 'Battle Veteran', desc: 'Win 100 battles', icon: '\u25C8' },
-              { id: 'ssr_hunter', name: 'SSR Hunter', desc: 'Obtain your first SSR', icon: '\u25C7' },
-              { id: 'naming_sss', name: 'Naming Sense', desc: 'Get SSS rank on a special move', icon: '\u25C7' },
-              { id: 'win_streak_10', name: 'Win Streak King', desc: 'Win 10 battles in a row', icon: '\u25B7' },
-              { id: 'legend', name: 'Legend', desc: '100% collection completion', icon: '\u25C8' },
-            ].map(title => {
-              const unlocked = false; // TODO: check user_titles
+            <Text style={styles.cardTitle}>
+              {'\u25C6'} TITLES ({unlockedIds.size}/{TITLE_DEFINITIONS.length})
+            </Text>
+            {TITLE_DEFINITIONS.map(title => {
+              const unlocked = unlockedIds.has(title.id);
               return (
                 <View key={title.id} style={[styles.titleRow, !unlocked && styles.titleLocked]}>
                   <Text style={[styles.titleIcon, { color: unlocked ? COLORS.warning : COLORS.textDim }]}>
