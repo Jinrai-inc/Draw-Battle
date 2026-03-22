@@ -35,7 +35,7 @@ export const useBattleStore = create<BattleState>((set, get) => ({
   setEnemyCharacter: (char) => set({ enemyCharacter: char }),
   setBattleResult: (result) => set({
     battleResult: result,
-    turns: result.turns,
+    turns: result.turns || [],
     currentTurnIndex: 0,
     isPlayerWinner: result.winnerId === get().playerCharacter?.id,
   }),

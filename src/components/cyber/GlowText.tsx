@@ -10,6 +10,11 @@ interface GlowTextProps {
   font?: 'heading' | 'body' | 'mono';
 }
 
+// Detect if text contains non-ASCII characters (Japanese, Chinese, Korean, etc.)
+function hasNonAscii(text: string): boolean {
+  return /[^\x00-\x7F]/.test(text);
+}
+
 export function GlowText({
   children,
   color = COLORS.primary,
@@ -17,6 +22,10 @@ export function GlowText({
   style,
   font = 'heading',
 }: GlowTextProps) {
+  // Use body font for non-ASCII text (Japanese etc.) since Orbitron doesn't support it
+  const textContent = typeof children === 'string' ? children : '';
+  const actualFont = font === 'heading' && hasNonAscii(textContent) ? 'body' : font;
+
   return (
     <Text
       style={[
@@ -24,7 +33,7 @@ export function GlowText({
         {
           color,
           fontSize: size,
-          fontFamily: FONTS[font],
+          fontFamily: FONTS[actualFont],
           textShadowColor: color,
         },
         style,

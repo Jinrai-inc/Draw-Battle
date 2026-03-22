@@ -64,7 +64,10 @@ export const showRewardedAd = (onReward: () => void): void => {
   // AppLovinMAX.addEventListener('OnRewardedAdReceivedRewardEvent', () => {
   //   onReward();
   // });
-  console.log('[AdService] Rewarded ad not available (SDK not installed)');
+
+  // Dev mode: immediately grant reward since ad SDK is not installed
+  console.log('[AdService] Rewarded ad not available - granting reward for dev mode');
+  onReward();
 };
 
 /**

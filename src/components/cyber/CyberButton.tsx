@@ -72,9 +72,8 @@ const styles = StyleSheet.create({
     elevation: 4,
   },
   text: {
-    fontFamily: FONTS.heading,
+    fontFamily: FONTS.body,
     fontWeight: '700',
-    letterSpacing: 2,
-    textTransform: 'uppercase',
+    letterSpacing: 1,
   },
 });
