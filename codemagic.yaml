@@ -1,0 +1,114 @@
+workflows:
+  # ============================================
+  # iOS Build (EAS Build)
+  # ============================================
+  ios-build:
+    name: iOS Build (EAS)
+    max_build_duration: 60
+    instance_type: mac_mini_m2
+    environment:
+      groups:
+        - expo         # EXPO_TOKEN
+        - app_store    # APPLE_ID, ASC_APP_ID, APPLE_TEAM_ID (submit時のみ)
+      node: 20
+      vars:
+        EXPO_NO_TELEMETRY: "1"
+    triggering:
+      events:
+        - push
+      branch_patterns:
+        - pattern: main
+          include: true
+        - pattern: release/*
+          include: true
+      cancel_previous_builds: true
+    scripts:
+      - name: Install dependencies
+        script: |
+          npm ci
+
+      - name: Run tests
+        script: |
+          npm test -- --passWithNoTests
+        ignore_failure: true
+
+      - name: Install EAS CLI
+        script: |
+          npm install -g eas-cli
+
+      - name: Run EAS Build (iOS)
+        script: |
+          eas build --platform ios --profile production --non-interactive --no-wait
+    artifacts:
+      - build/*.ipa
+
+  # ============================================
+  # iOS Preview Build (内部テスト用)
+  # ============================================
+  ios-preview:
+    name: iOS Preview Build
+    max_build_duration: 60
+    instance_type: mac_mini_m2
+    environment:
+      groups:
+        - expo
+      node: 20
+      vars:
+        EXPO_NO_TELEMETRY: "1"
+    triggering:
+      events:
+        - pull_request
+      branch_patterns:
+        - pattern: "*"
+          include: true
+      cancel_previous_builds: true
+    scripts:
+      - name: Install dependencies
+        script: |
+          npm ci
+
+      - name: Run tests
+        script: |
+          npm test -- --passWithNoTests
+        ignore_failure: true
+
+      - name: Install EAS CLI
+        script: |
+          npm install -g eas-cli
+
+      - name: Run EAS Build (iOS Preview)
+        script: |
+          eas build --platform ios --profile preview --non-interactive --no-wait
+
+  # ============================================
+  # iOS Submit to App Store
+  # ============================================
+  ios-submit:
+    name: iOS Submit to App Store
+    max_build_duration: 30
+    instance_type: mac_mini_m2
+    environment:
+      groups:
+        - expo
+        - app_store
+      node: 20
+      vars:
+        EXPO_NO_TELEMETRY: "1"
+    triggering:
+      events:
+        - tag
+      tag_patterns:
+        - pattern: "v*"
+          include: true
+    scripts:
+      - name: Install dependencies
+        script: |
+          npm ci
+
+      - name: Install EAS CLI
+        script: |
+          npm install -g eas-cli
+
+      - name: Submit to App Store
+        script: |
+          eas submit --platform ios --profile production --non-interactive
