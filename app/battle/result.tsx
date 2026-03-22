@@ -15,6 +15,7 @@ import { useAdControl } from '../../src/hooks/useAdControl';
 import { createEquipment } from '../../src/services/equipmentService';
 import { useTitleStore } from '../../src/stores/titleStore';
 import { useCollectionStore } from '../../src/stores/collectionStore';
+import { useDailyMissionStore } from '../../src/stores/dailyMissionStore';
 import { TitleUnlockToast } from '../../src/components/cyber/TitleUnlockToast';
 
 export default function ResultScreen() {
@@ -32,6 +33,7 @@ export default function ResultScreen() {
   const { user } = useAuthStore();
   const { characters } = useCollectionStore();
   const { checkTitles, incrementWinStreak, resetWinStreak, popNewlyUnlocked } = useTitleStore();
+  const { completeMission: completeDailyMission } = useDailyMissionStore();
   const { onBattleEnd, showExpBoostAd } = useAdControl();
   const [expMultiplied, setExpMultiplied] = React.useState(false);
   const [dropSaved, setDropSaved] = React.useState(false);
@@ -61,6 +63,8 @@ export default function ResultScreen() {
     } else {
       resetWinStreak();
     }
+
+    completeDailyMission(user.id, 'battle');
 
     checkTitles(user.id, characters, user.totalWins + (isPlayerWinner ? 1 : 0)).then(newIds => {
       if (newIds.length > 0) {

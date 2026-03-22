@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { View, Text, StyleSheet, ScrollView, Alert, TouchableOpacity } from 'react-native';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -8,11 +8,15 @@ import { GlowText } from '../../src/components/cyber/GlowText';
 import { CyberCard } from '../../src/components/cyber/CyberCard';
 import { ScanlineOverlay, GridBackground } from '../../src/components/cyber/ScanlineOverlay';
 import { StatsCard } from '../../src/components/StatsCard';
+import { CharacterSprite } from '../../src/components/CharacterSprite';
 import { useCollectionStore } from '../../src/stores/collectionStore';
 import { useBattleStore } from '../../src/stores/battleStore';
 import { useEquipmentStore } from '../../src/stores/equipmentStore';
+import { useAuthStore } from '../../src/stores/authStore';
 import { calcSpecialPower } from '../../src/engine/specialPower';
 import { calcEquipmentBonuses } from '../../src/services/equipmentService';
+import * as likeService from '../../src/services/likeService';
+import { playSE, SE } from '../../src/services/soundService';
 
 const STAT_LABELS: Record<string, string> = {
   hp: 'HP', atk: 'ATK', def: 'DEF', spd: 'SPD', special: 'SPE',
@@ -21,12 +25,46 @@ const STAT_LABELS: Record<string, string> = {
 export default function CharacterDetailScreen() {
   const router = useRouter();
   const { id } = useLocalSearchParams<{ id: string }>();
-  const { characters, selectCharacter } = useCollectionStore();
+  const { characters, selectCharacter, draftImageBase64 } = useCollectionStore();
   const { setPlayerCharacter, setPhase } = useBattleStore();
   const { items: allEquipment } = useEquipmentStore();
+  const user = useAuthStore(s => s.user);
   const cfg = GAME_CONFIG.equipment;
 
   const character = characters.find(c => c.id === id);
+
+  // Like state
+  const [likeCount, setLikeCount] = useState(0);
+  const [isLiked, setIsLiked] = useState(false);
+  const [likeLoading, setLikeLoading] = useState(false);
+
+  useEffect(() => {
+    if (!character || !user?.id) return;
+    likeService.getLikeCount(character.id).then(setLikeCount);
+    likeService.getMyLikes(user.id).then(likes => {
+      setIsLiked(likes.includes(character.id));
+    });
+  }, [character?.id, user?.id]);
+
+  const handleToggleLike = useCallback(async () => {
+    if (!character || !user?.id || likeLoading) return;
+    setLikeLoading(true);
+    if (isLiked) {
+      const ok = await likeService.unlikeCharacter(user.id, character.id);
+      if (ok) {
+        setIsLiked(false);
+        setLikeCount(c => Math.max(0, c - 1));
+      }
+    } else {
+      const ok = await likeService.likeCharacter(user.id, character.id, character.userId);
+      if (ok) {
+        setIsLiked(true);
+        setLikeCount(c => c + 1);
+        playSE(SE.TAP);
+      }
+    }
+    setLikeLoading(false);
+  }, [character, user?.id, isLiked, likeLoading]);
 
   if (!character) {
     return (
@@ -82,15 +120,32 @@ export default function CharacterDetailScreen() {
             { borderColor: elementDef?.color || COLORS.primary },
             character.isEvolved && { shadowColor: rarityDef?.color, shadowOpacity: 0.8, shadowRadius: 16, elevation: 8 },
           ]}>
-            <Text style={[styles.previewIcon, { color: elementDef?.color || COLORS.primary }]}>
-              {'\u25C8'}
-            </Text>
+            <CharacterSprite
+              imageBase64={character.imageUrl || draftImageBase64 || undefined}
+              size={100}
+              animate={true}
+              glowColor={elementDef?.color || COLORS.primary}
+            />
           </View>
           {character.isEvolved && (
             <Text style={[styles.evolvedBadge, { color: rarityDef?.color }]}>
               {'\u25C6'} EVOLVED {'\u25C6'}
             </Text>
           )}
+          {/* Like button */}
+          <TouchableOpacity
+            style={[styles.likeButton, isLiked && styles.likeButtonActive]}
+            onPress={handleToggleLike}
+            disabled={likeLoading}
+            activeOpacity={0.7}
+          >
+            <Text style={[styles.likeIcon, isLiked && { color: '#FF6B8A' }]}>
+              {isLiked ? '\u2665' : '\u2661'}
+            </Text>
+            <Text style={[styles.likeCountText, isLiked && { color: '#FF6B8A' }]}>
+              {likeCount}
+            </Text>
+          </TouchableOpacity>
         </View>
 
         {/* Level & EXP */}
@@ -306,6 +361,32 @@ const styles = StyleSheet.create({
     fontSize: 12,
     letterSpacing: 3,
     marginTop: 8,
+  },
+  likeButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    marginTop: 10,
+    paddingHorizontal: 14,
+    paddingVertical: 6,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.15)',
+    borderRadius: 20,
+    backgroundColor: 'rgba(255,255,255,0.03)',
+  },
+  likeButtonActive: {
+    borderColor: 'rgba(255, 107, 138, 0.4)',
+    backgroundColor: 'rgba(255, 107, 138, 0.08)',
+  },
+  likeIcon: {
+    fontSize: 18,
+    color: COLORS.textDim,
+  },
+  likeCountText: {
+    fontFamily: FONTS.mono,
+    fontSize: 13,
+    color: COLORS.textDim,
+    fontWeight: '700',
   },
   card: {
     marginTop: 16,

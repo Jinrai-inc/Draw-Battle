@@ -9,6 +9,8 @@ import { GlowText } from '../../src/components/cyber/GlowText';
 import { ScanlineOverlay, GridBackground } from '../../src/components/cyber/ScanlineOverlay';
 import { useCollectionStore } from '../../src/stores/collectionStore';
 import { useTitleStore } from '../../src/stores/titleStore';
+import { useDailyMissionStore } from '../../src/stores/dailyMissionStore';
+import { useAuthStore } from '../../src/stores/authStore';
 import { determineElement, determineRarity } from '../../src/engine/drawingAnalyzer';
 import type { Character, ElementId } from '../../src/types';
 
@@ -24,6 +26,8 @@ export default function FusionScreen() {
   const router = useRouter();
   const { characters, addCharacter, removeCharacter } = useCollectionStore();
   const { incrementSyntheses } = useTitleStore();
+  const { completeMission } = useDailyMissionStore();
+  const user = useAuthStore(s => s.user);
 
   const [char1, setChar1] = useState<Character | null>(null);
   const [char2, setChar2] = useState<Character | null>(null);
@@ -120,6 +124,7 @@ export default function FusionScreen() {
       removeCharacter(char2.id);
       addCharacter(newChar);
       incrementSyntheses();
+      if (user?.id) completeMission(user.id, 'fusion');
 
       setPhase('result');
     });

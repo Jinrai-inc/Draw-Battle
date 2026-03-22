@@ -15,6 +15,7 @@ import { CyberButton, CyberCard, GlowText, CyberInput } from '../../src/componen
 import { ScanlineOverlay, GridBackground } from '../../src/components/cyber/ScanlineOverlay';
 import { useCollectionStore } from '../../src/stores/collectionStore';
 import { useAuthStore } from '../../src/stores/authStore';
+import { useDailyMissionStore } from '../../src/stores/dailyMissionStore';
 import { analyzeDrawing, generateStats, determineElement, determineRarity } from '../../src/engine/drawingAnalyzer';
 import type { Character, DrawingAnalysis } from '../../src/types';
 
@@ -101,6 +102,7 @@ export default function DrawScreen() {
   const router = useRouter();
   const { setDraft } = useCollectionStore();
   const user = useAuthStore((s) => s.user);
+  const { completeMission } = useDailyMissionStore();
 
   const [paths, setPaths] = useState<DrawPath[]>([]);
   const [currentColor, setCurrentColor] = useState('#000000');
@@ -188,6 +190,7 @@ export default function DrawScreen() {
     // Save as draft and navigate to naming screen
     setDraft(newCharacter, imageBase64);
     setPaths([]);
+    if (user?.id) completeMission(user.id, 'draw');
     router.push('/character/naming');
   }, [paths, setDraft, user, router]);
 

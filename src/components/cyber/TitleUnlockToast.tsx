@@ -15,7 +15,7 @@ export function TitleUnlockToast({ titleId, onDone }: Props) {
   const title = TITLE_DEFINITIONS.find(t => t.id === titleId);
 
   useEffect(() => {
-    playSE(SE.LEVELUP);
+    playSE(SE.TITLE_UNLOCK);
 
     Animated.sequence([
       // Slide in
