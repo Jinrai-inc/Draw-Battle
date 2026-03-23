@@ -58,14 +58,22 @@ workflows:
       # --- ビルド番号自動インクリメント ---
       - name: Increment build number
         script: |
+          set -e
           LATEST_BUILD=$(app-store-connect get-latest-testflight-build-number "$BUNDLE_ID" 2>/dev/null || echo 1)
           echo "Latest TestFlight build number: $LATEST_BUILD"
           NEW_BUILD=$((LATEST_BUILD + 1))
           echo "Setting new build number to: $NEW_BUILD"
-          # Update Info.plist directly (more reliable than agvtool)
+
+          # Update Info.plist
           PLIST_PATH="ios/DrawBattle/Info.plist"
           /usr/libexec/PlistBuddy -c "Set :CFBundleVersion $NEW_BUILD" "$PLIST_PATH"
-          echo "CFBundleVersion is now: $(/usr/libexec/PlistBuddy -c 'Print :CFBundleVersion' "$PLIST_PATH")"
+          echo "Info.plist CFBundleVersion: $(/usr/libexec/PlistBuddy -c 'Print :CFBundleVersion' "$PLIST_PATH")"
+
+          # Update CURRENT_PROJECT_VERSION in project.pbxproj (Xcode build setting overrides Info.plist)
+          PBXPROJ="ios/DrawBattle.xcodeproj/project.pbxproj"
+          sed -i '' "s/CURRENT_PROJECT_VERSION = [0-9]*/CURRENT_PROJECT_VERSION = $NEW_BUILD/g" "$PBXPROJ"
+          echo "project.pbxproj CURRENT_PROJECT_VERSION updated"
+          grep "CURRENT_PROJECT_VERSION" "$PBXPROJ"
 
       # --- Xcodeビルド ---
       - name: Build iOS app
