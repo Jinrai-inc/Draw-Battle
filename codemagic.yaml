@@ -58,12 +58,14 @@ workflows:
       # --- ビルド番号自動インクリメント ---
       - name: Increment build number
         script: |
-          cd ios
-          LATEST_BUILD=$(app-store-connect get-latest-testflight-build-number "$BUNDLE_ID" || echo 1)
+          LATEST_BUILD=$(app-store-connect get-latest-testflight-build-number "$BUNDLE_ID" 2>/dev/null || echo 1)
           echo "Latest TestFlight build number: $LATEST_BUILD"
           NEW_BUILD=$((LATEST_BUILD + 1))
-          echo "Setting new build number: $NEW_BUILD"
-          agvtool new-version -all $NEW_BUILD
+          echo "Setting new build number to: $NEW_BUILD"
+          # Update Info.plist directly (more reliable than agvtool)
+          PLIST_PATH="ios/DrawBattle/Info.plist"
+          /usr/libexec/PlistBuddy -c "Set :CFBundleVersion $NEW_BUILD" "$PLIST_PATH"
+          echo "CFBundleVersion is now: $(/usr/libexec/PlistBuddy -c 'Print :CFBundleVersion' "$PLIST_PATH")"
 
       # --- Xcodeビルド ---
       - name: Build iOS app
