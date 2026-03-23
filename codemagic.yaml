@@ -7,7 +7,7 @@ workflows:
     max_build_duration: 120
     instance_type: mac_mini_m2
     integrations:
-      app_store_connect: CodemagicASC   # Codemagic側で設定するApp Store Connect API Key名
+      app_store_connect: H5U67Q9KK7
     environment:
       ios_signing:
         distribution_type: app_store
@@ -89,7 +89,7 @@ workflows:
     max_build_duration: 120
     instance_type: mac_mini_m2
     integrations:
-      app_store_connect: CodemagicASC
+      app_store_connect: H5U67Q9KK7
     environment:
       ios_signing:
         distribution_type: ad_hoc
