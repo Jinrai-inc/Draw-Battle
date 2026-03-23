@@ -58,9 +58,13 @@ workflows:
       # --- ビルド番号自動インクリメント ---
       - name: Increment build number
         script: |
-          set -e
-          LATEST_BUILD=$(app-store-connect get-latest-testflight-build-number "$BUNDLE_ID" 2>/dev/null || echo 1)
-          echo "Latest TestFlight build number: $LATEST_BUILD"
+          LATEST_BUILD=$(app-store-connect get-latest-testflight-build-number "$BUNDLE_ID" 2>/dev/null || true)
+          echo "Latest TestFlight build number: '$LATEST_BUILD'"
+          # If empty or non-numeric, default to 1
+          if ! echo "$LATEST_BUILD" | grep -qE '^[0-9]+$'; then
+            echo "Invalid or empty build number, defaulting to 1"
+            LATEST_BUILD=1
+          fi
           NEW_BUILD=$((LATEST_BUILD + 1))
           echo "Setting new build number to: $NEW_BUILD"
 
