@@ -33,7 +33,7 @@ workflows:
       # --- 依存関係インストール ---
       - name: Install Node dependencies
         script: |
-          npm ci
+          npm ci --legacy-peer-deps
 
       - name: Run tests
         script: |
@@ -110,7 +110,7 @@ workflows:
     scripts:
       - name: Install Node dependencies
         script: |
-          npm ci
+          npm ci --legacy-peer-deps
 
       - name: Run tests
         script: |
