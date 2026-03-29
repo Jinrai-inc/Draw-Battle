@@ -46,6 +46,7 @@ const translations = {
   register_error_short_password: { ja: 'パスワードは6文字以上で入力してください', en: 'Password must be at least 6 characters', zh: '密码至少6位', ko: '비밀번호는 6자 이상이어야 합니다', es: 'La contraseña debe tener al menos 6 caracteres' },
   register_error_invalid: { ja: 'メールまたはパスワードが正しくありません', en: 'Invalid email or password', zh: '邮箱或密码错误', ko: '이메일 또는 비밀번호가 올바르지 않습니다', es: 'Email o contraseña incorrectos' },
   register_error_exists: { ja: 'このメールは既に登録されています', en: 'This email is already registered', zh: '该邮箱已注册', ko: '이미 등록된 이메일입니다', es: 'Este email ya está registrado' },
+  register_error_network: { ja: 'ネットワークエラーが発生しました。通信環境を確認してください', en: 'Network error. Please check your connection and try again', zh: '网络错误，请检查连接后重试', ko: '네트워크 오류입니다. 연결 상태를 확인해주세요', es: 'Error de red. Verifica tu conexión e inténtalo de nuevo' },
 
   // ===== Nickname =====
   nickname_title: { ja: 'ニックネームを決めよう', en: 'Choose your nickname', zh: '设置昵称', ko: '닉네임을 정하세요', es: 'Elige tu apodo' },

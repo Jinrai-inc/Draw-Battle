@@ -38,7 +38,11 @@ export default function NicknameScreen() {
       setUser(mapDbUser(profile));
       router.replace('/(tabs)');
     } catch (err: any) {
-      Alert.alert('', err.message || t('error'));
+      const msg = err.message || '';
+      const message = msg.includes('fetch') || msg.includes('network') || msg.includes('Failed to fetch')
+        ? t('register_error_network')
+        : msg || t('error');
+      Alert.alert('', message);
     } finally {
       setLoading(false);
     }

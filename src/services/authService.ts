@@ -1,4 +1,11 @@
+import { Platform } from 'react-native';
 import { supabase } from './supabase';
+import * as WebBrowser from 'expo-web-browser';
+import * as AuthSession from 'expo-auth-session';
+import * as AppleAuthentication from 'expo-apple-authentication';
+
+// Ensure web browser auth session completes properly
+WebBrowser.maybeCompleteAuthSession();
 
 // Generate random 8-char alphanumeric friend ID
 function generateFriendId(): string {
@@ -38,22 +45,97 @@ export async function signInWithEmail({ email, password }: SignUpWithEmailParams
   return data;
 }
 
-// Sign in with Google OAuth
+// Sign in with Google OAuth (native mobile flow)
 export async function signInWithGoogle() {
+  const redirectTo = AuthSession.makeRedirectUri();
+
   const { data, error } = await supabase.auth.signInWithOAuth({
     provider: 'google',
+    options: {
+      redirectTo,
+      skipBrowserRedirect: true,
+    },
   });
+
   if (error) throw error;
-  return data;
+  if (!data?.url) throw new Error('No OAuth URL returned');
+
+  const result = await WebBrowser.openAuthSessionAsync(data.url, redirectTo);
+
+  if (result.type === 'success') {
+    const url = result.url;
+    // Extract tokens from the redirect URL fragment
+    const params = new URLSearchParams(url.split('#')[1] || url.split('?')[1] || '');
+    const accessToken = params.get('access_token');
+    const refreshToken = params.get('refresh_token');
+
+    if (accessToken && refreshToken) {
+      const { error: sessionError } = await supabase.auth.setSession({
+        access_token: accessToken,
+        refresh_token: refreshToken,
+      });
+      if (sessionError) throw sessionError;
+    }
+  } else if (result.type === 'cancel' || result.type === 'dismiss') {
+    throw new Error('Login cancelled');
+  }
 }
 
-// Sign in with Apple OAuth
+// Sign in with Apple (native flow on iOS, web flow on other platforms)
 export async function signInWithApple() {
-  const { data, error } = await supabase.auth.signInWithOAuth({
-    provider: 'apple',
-  });
-  if (error) throw error;
-  return data;
+  if (Platform.OS === 'ios') {
+    // Use native Apple Authentication on iOS
+    const credential = await AppleAuthentication.signInAsync({
+      requestedScopes: [
+        AppleAuthentication.AppleAuthenticationScope.FULL_NAME,
+        AppleAuthentication.AppleAuthenticationScope.EMAIL,
+      ],
+    });
+
+    if (!credential.identityToken) {
+      throw new Error('No identity token returned from Apple');
+    }
+
+    const { error } = await supabase.auth.signInWithIdToken({
+      provider: 'apple',
+      token: credential.identityToken,
+    });
+
+    if (error) throw error;
+  } else {
+    // Fallback to web-based OAuth for non-iOS platforms
+    const redirectTo = AuthSession.makeRedirectUri();
+
+    const { data, error } = await supabase.auth.signInWithOAuth({
+      provider: 'apple',
+      options: {
+        redirectTo,
+        skipBrowserRedirect: true,
+      },
+    });
+
+    if (error) throw error;
+    if (!data?.url) throw new Error('No OAuth URL returned');
+
+    const result = await WebBrowser.openAuthSessionAsync(data.url, redirectTo);
+
+    if (result.type === 'success') {
+      const url = result.url;
+      const params = new URLSearchParams(url.split('#')[1] || url.split('?')[1] || '');
+      const accessToken = params.get('access_token');
+      const refreshToken = params.get('refresh_token');
+
+      if (accessToken && refreshToken) {
+        const { error: sessionError } = await supabase.auth.setSession({
+          access_token: accessToken,
+          refresh_token: refreshToken,
+        });
+        if (sessionError) throw sessionError;
+      }
+    } else if (result.type === 'cancel' || result.type === 'dismiss') {
+      throw new Error('Login cancelled');
+    }
+  }
 }
 
 // Create a guest profile (in-memory only, no external service needed)

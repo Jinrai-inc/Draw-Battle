@@ -23,7 +23,10 @@ export default function LoginScreen() {
     try {
       await signInWithGoogle();
     } catch (err: any) {
-      Alert.alert(t('error'), err.message || 'Google login failed');
+      // Don't show alert for user-initiated cancellations
+      if (err.message !== 'Login cancelled') {
+        Alert.alert(t('error'), err.message || 'Google login failed');
+      }
     } finally {
       setLoading(null);
     }
@@ -34,7 +37,13 @@ export default function LoginScreen() {
     try {
       await signInWithApple();
     } catch (err: any) {
-      Alert.alert(t('error'), err.message || 'Apple login failed');
+      // Don't show alert for user-initiated cancellations (native Apple dialog or browser)
+      const code = err.code;
+      if (code === 'ERR_CANCELED' || err.message === 'Login cancelled') {
+        // User cancelled - do nothing
+      } else {
+        Alert.alert(t('error'), err.message || 'Apple login failed');
+      }
     } finally {
       setLoading(null);
     }

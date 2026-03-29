@@ -36,11 +36,14 @@ export default function RegisterScreen() {
         await signUpWithEmail({ email, password });
       }
     } catch (err: any) {
-      const message = err.message?.includes('Invalid login')
+      const msg = err.message || '';
+      const message = msg.includes('Invalid login')
         ? t('register_error_invalid')
-        : err.message?.includes('already registered')
+        : msg.includes('already registered')
         ? t('register_error_exists')
-        : err.message || t('error');
+        : msg.includes('fetch') || msg.includes('network') || msg.includes('Failed to fetch')
+        ? t('register_error_network')
+        : msg || t('error');
       Alert.alert('', message);
     } finally {
       setLoading(false);
